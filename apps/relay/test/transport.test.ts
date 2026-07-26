@@ -9,6 +9,7 @@ function baseConfig(): RelayConfig {
     port: 8787,
     pairingCodeTtlSeconds: 180,
     heartbeatStaleSeconds: 30,
+    promptLeaseSeconds: 60,
     deviceTokenTtlDays: 30,
     enforceTlsInProduction: true,
     trustProxy: false,

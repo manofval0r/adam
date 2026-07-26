@@ -3,7 +3,7 @@ import { loadRelayConfig } from "./config.js";
 import { RelayStoreError } from "./errors.js";
 import { parseBearerToken } from "./auth.js";
 import { RelayStore } from "./store.js";
-import type { DaemonHeartbeatInput, RelayConfig, SessionHeartbeatInput } from "./types.js";
+import type { DaemonHeartbeatInput, PromptStatusUpdateInput, RelayConfig, SessionHeartbeatInput } from "./types.js";
 
 export interface RelayServerOptions {
   config?: RelayConfig;
@@ -20,8 +20,42 @@ interface PairingExchangeRequest {
   deviceName: string;
 }
 
+interface PromptSubmissionRequest {
+  relaySessionId: string;
+  text: string;
+  clientPromptId: string;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function parseOptionalLimit(value: unknown, fallback: number, maxLimit: number): number {
+  if (value === undefined) {
+    return fallback;
+  }
+  if (typeof value !== "string") {
+    throw new RelayStoreError("limit must be a number.", 400, "invalid_limit");
+  }
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed < 1 || parsed > maxLimit) {
+    throw new RelayStoreError(`limit must be between 1 and ${maxLimit}.`, 400, "invalid_limit");
+  }
+  return parsed;
+}
+
+function parseOptionalSinceSequence(value: unknown): number {
+  if (value === undefined) {
+    return 0;
+  }
+  if (typeof value !== "string") {
+    throw new RelayStoreError("sinceSequence must be a number.", 400, "invalid_since_sequence");
+  }
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new RelayStoreError("sinceSequence must be zero or greater.", 400, "invalid_since_sequence");
+  }
+  return parsed;
 }
 
 function parsePairingCodeRequest(body: unknown): PairingCodeRequest {
@@ -69,6 +103,54 @@ function parsePairingExchangeRequest(body: unknown): PairingExchangeRequest {
   };
 }
 
+function parsePromptSubmissionRequest(body: unknown): PromptSubmissionRequest {
+  if (!isRecord(body)) {
+    throw new RelayStoreError("Expected JSON object body.", 400, "invalid_body");
+  }
+
+  const relaySessionId = body.relaySessionId;
+  const text = body.text;
+  const clientPromptId = body.clientPromptId;
+  if (typeof relaySessionId !== "string" || relaySessionId.trim().length === 0) {
+    throw new RelayStoreError("relaySessionId is required.", 400, "invalid_session_id");
+  }
+  if (typeof text !== "string" || text.trim().length === 0) {
+    throw new RelayStoreError("text is required.", 400, "invalid_prompt_text");
+  }
+  if (typeof clientPromptId !== "string" || clientPromptId.trim().length === 0) {
+    throw new RelayStoreError("clientPromptId is required.", 400, "invalid_client_prompt_id");
+  }
+
+  return {
+    relaySessionId: relaySessionId.trim(),
+    text: text.trim(),
+    clientPromptId: clientPromptId.trim()
+  };
+}
+
+function parsePromptStatusUpdateRequest(body: unknown): PromptStatusUpdateInput {
+  if (!isRecord(body)) {
+    throw new RelayStoreError("Expected JSON object body.", 400, "invalid_body");
+  }
+
+  const state = body.state;
+  if (state !== "adapter_sent" && state !== "acknowledged" && state !== "failed") {
+    throw new RelayStoreError("Invalid prompt state.", 400, "invalid_prompt_state");
+  }
+
+  const parsed: PromptStatusUpdateInput = { state };
+  if (typeof body.errorCode === "string" && body.errorCode.trim().length > 0) {
+    parsed.errorCode = body.errorCode.trim();
+  }
+  if (typeof body.errorMessage === "string" && body.errorMessage.trim().length > 0) {
+    parsed.errorMessage = body.errorMessage.trim();
+  }
+  if (typeof body.assistantText === "string" && body.assistantText.trim().length > 0) {
+    parsed.assistantText = body.assistantText.trim();
+  }
+  return parsed;
+}
+
 function parseHeartbeatSession(value: unknown): SessionHeartbeatInput {
   if (!isRecord(value)) {
     throw new RelayStoreError("Session item must be an object.", 400, "invalid_heartbeat_session");
@@ -102,6 +184,12 @@ function parseHeartbeatSession(value: unknown): SessionHeartbeatInput {
   }
   if (typeof value.lastActivityAt === "string" && value.lastActivityAt.trim().length > 0) {
     output.lastActivityAt = value.lastActivityAt.trim();
+  }
+  if (value.remotePromptConsent !== undefined) {
+    if (typeof value.remotePromptConsent !== "boolean") {
+      throw new RelayStoreError("remotePromptConsent must be a boolean.", 400, "invalid_remote_prompt_consent");
+    }
+    output.remotePromptConsent = value.remotePromptConsent;
   }
 
   return output;
@@ -146,7 +234,7 @@ function sendError(reply: FastifyReply, error: unknown): void {
 function authenticateDeviceRequest(request: FastifyRequest, store: RelayStore): { deviceId: string; userId: string } {
   const token = parseBearerToken(request.headers.authorization);
   if (!token) {
-    throw new RelayStoreError("Bearer token required.", 401, "missing_device_token");
+    throw new RelayStoreError("Device bearer token is required.", 401, "missing_device_token");
   }
   const device = store.authenticateDeviceToken(token);
   return {
@@ -296,6 +384,108 @@ export function createRelayServer(options?: RelayServerOptions): FastifyInstance
         deviceId: result.deviceId,
         reconnectCount: result.reconnectCount,
         sessionsUpdated: result.sessionsUpdated
+      });
+    } catch (error) {
+      sendError(reply, error);
+    }
+  });
+
+  app.get("/v1/daemon/prompts", async (request, reply) => {
+    try {
+      const principal = authenticateDeviceRequest(request, store);
+      const query = isRecord(request.query) ? request.query : {};
+      const limit = parseOptionalLimit(query.limit, 20, 100);
+      const prompts = store.dequeuePromptsForDevice(principal.deviceId, limit);
+      reply.send({
+        prompts
+      });
+    } catch (error) {
+      sendError(reply, error);
+    }
+  });
+
+  app.post("/v1/daemon/prompts/:promptId/status", async (request, reply) => {
+    try {
+      const principal = authenticateDeviceRequest(request, store);
+      const params = request.params;
+      if (!isRecord(params)) {
+        throw new RelayStoreError("Invalid prompt params.", 400, "invalid_prompt_params");
+      }
+      const promptId = params.promptId;
+      if (typeof promptId !== "string" || promptId.trim().length === 0) {
+        throw new RelayStoreError("promptId is required.", 400, "invalid_prompt_id");
+      }
+
+      const statusUpdate = parsePromptStatusUpdateRequest(request.body);
+      const prompt = store.updatePromptState(principal.deviceId, promptId.trim(), statusUpdate);
+      reply.send({
+        promptId: prompt.id,
+        state: prompt.state,
+        updatedAt: prompt.updatedAt
+      });
+    } catch (error) {
+      sendError(reply, error);
+    }
+  });
+
+  app.post("/v1/prompts", async (request, reply) => {
+    try {
+      const principal = authenticateDeviceRequest(request, store);
+      const payload = parsePromptSubmissionRequest(request.body);
+      const prompt = store.submitPrompt(principal.userId, payload.relaySessionId, payload.text, payload.clientPromptId);
+      reply.code(202).send({
+        promptId: prompt.id,
+        state: prompt.state,
+        relaySessionId: payload.relaySessionId,
+        sessionId: prompt.sessionId,
+        createdAt: prompt.createdAt,
+        updatedAt: prompt.updatedAt
+      });
+    } catch (error) {
+      sendError(reply, error);
+    }
+  });
+
+  app.get("/v1/prompts", async (request, reply) => {
+    try {
+      const principal = authenticateDeviceRequest(request, store);
+      const query = isRecord(request.query) ? request.query : {};
+      const sessionIdRaw = query.sessionId;
+      const sessionId = typeof sessionIdRaw === "string" && sessionIdRaw.trim().length > 0
+        ? sessionIdRaw.trim()
+        : undefined;
+      const prompts = store.listPromptsForUser(principal.userId, sessionId).map((prompt) => ({
+        id: prompt.id,
+        sessionId: prompt.sessionId,
+        state: prompt.state,
+        createdAt: prompt.createdAt,
+        updatedAt: prompt.updatedAt,
+        errorCode: prompt.errorCode,
+        errorMessage: prompt.errorMessage
+      }));
+      reply.send({
+        userId: principal.userId,
+        prompts
+      });
+    } catch (error) {
+      sendError(reply, error);
+    }
+  });
+
+  app.get("/v1/events", async (request, reply) => {
+    try {
+      const principal = authenticateDeviceRequest(request, store);
+      const query = isRecord(request.query) ? request.query : {};
+      const sinceSequence = parseOptionalSinceSequence(query.sinceSequence);
+      const limit = parseOptionalLimit(query.limit, 50, 200);
+      const events = store.listEventsForUser(principal.userId, sinceSequence, limit);
+      const lastEvent = events.length > 0 ? events[events.length - 1] : null;
+      const lastSequence = lastEvent ? lastEvent.sequence : sinceSequence;
+      reply.send({
+        userId: principal.userId,
+        sinceSequence,
+        lastSequence,
+        events
       });
     } catch (error) {
       sendError(reply, error);

@@ -14,6 +14,13 @@ export interface CodexSessionCandidate {
   modifiedAt: string;
 }
 
+export interface CodexPromptExecutionResult {
+  ok: boolean;
+  assistantText?: string;
+  errorCode?: string;
+  errorMessage?: string;
+}
+
 export function detectCodexAvailability(binary: string): CodexAvailability {
   const result = spawnSync(binary, ["--version"], {
     encoding: "utf8",
@@ -94,5 +101,53 @@ export function discoverLatestCodexSession(sessionsDirectory: string): CodexSess
     sessionId: path.basename(latest.filePath, ".jsonl"),
     filePath: latest.filePath,
     modifiedAt: new Date(latest.mtimeMs).toISOString()
+  };
+}
+
+export function executeCodexPrompt(
+  binary: string,
+  prompt: string,
+  sessionId: string,
+  cwd: string,
+  timeoutMs: number
+): CodexPromptExecutionResult {
+  const normalizedPrompt = prompt.trim();
+  if (normalizedPrompt.length === 0) {
+    return {
+      ok: false,
+      errorCode: "invalid_prompt",
+      errorMessage: "Prompt cannot be empty."
+    };
+  }
+
+  const commandArgs = ["exec", "resume", sessionId, "--json"];
+  const result = spawnSync(binary, commandArgs, {
+    cwd,
+    input: normalizedPrompt,
+    encoding: "utf8",
+    timeout: timeoutMs,
+    maxBuffer: 2 * 1024 * 1024
+  });
+
+  if (result.error) {
+    return {
+      ok: false,
+      errorCode: "codex_exec_error",
+      errorMessage: result.error.message
+    };
+  }
+  if (result.status !== 0) {
+    const message = (result.stderr || result.stdout || "Codex exec failed.").trim();
+    return {
+      ok: false,
+      errorCode: "codex_exec_failed",
+      errorMessage: message
+    };
+  }
+
+  const assistantText = (result.stdout || "").trim();
+  return {
+    ok: true,
+    assistantText: assistantText.length > 0 ? assistantText : "Prompt delivered successfully."
   };
 }

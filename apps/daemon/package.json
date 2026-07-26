@@ -8,6 +8,7 @@
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
     "health": "tsx src/main.ts health",
-    "start": "tsx src/main.ts start"
+    "start": "tsx src/main.ts start",
+    "relay:once": "tsx src/main.ts relay-once"
   }
 }

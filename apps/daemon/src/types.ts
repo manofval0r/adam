@@ -37,6 +37,21 @@ export interface ActivityPayload {
   category: "syncing" | "searching" | "other";
 }
 
+export interface SessionHeartbeatInput {
+  id: string;
+  tool: "codex_cli" | "unknown";
+  status: "active" | "idle" | "failed" | "disconnected";
+  repoPath?: string;
+  branch?: string;
+  lastActivityAt?: string;
+  remotePromptConsent?: boolean;
+}
+
+export interface DaemonHeartbeatInput {
+  daemonVersion: string;
+  sessions: SessionHeartbeatInput[];
+}
+
 export interface DaemonEventEnvelope<TPayload> {
   id: string;
   schemaVersion: "2026-07-26";

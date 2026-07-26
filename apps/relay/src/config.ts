@@ -71,6 +71,7 @@ export function loadRelayConfig(): RelayConfig {
     port: parseInteger(process.env.RELAY_PORT, 8787),
     pairingCodeTtlSeconds: parseInteger(process.env.RELAY_PAIRING_CODE_TTL_SECONDS, 180),
     heartbeatStaleSeconds: parseInteger(process.env.RELAY_HEARTBEAT_STALE_SECONDS, 45),
+    promptLeaseSeconds: parseInteger(process.env.RELAY_PROMPT_LEASE_SECONDS, 180),
     deviceTokenTtlDays: parseInteger(process.env.RELAY_DEVICE_TOKEN_TTL_DAYS, 30),
     enforceTlsInProduction: parseBoolean(process.env.RELAY_ENFORCE_TLS_PRODUCTION, true),
     trustProxy: parseBoolean(process.env.RELAY_TRUST_PROXY, false),

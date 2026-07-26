@@ -25,6 +25,14 @@ This changelog records meaningful planning and implementation changes between co
 - Added relay tests for production transport enforcement, bootstrap-key authorization, token expiry, and cross-user isolation.
 - Added relay production startup protection that blocks default in-memory store usage unless explicitly overridden.
 - Added relay transport and reconnect assumptions documentation for Milestone 2.
+- Added Milestone 3 relay prompt flow with authenticated prompt submission, daemon prompt dequeue, prompt status transitions, and user-scoped event feed endpoints.
+- Added daemon relay worker command (`relay-once`) that heartbeats, pulls queued prompts, forwards prompts to Codex, and reports acknowledged or failed delivery states.
+- Added web client prototype (`apps/web`) with prompt composer, session picker, relay-backed activity feed polling, and explicit error-state rendering.
+- Added relay and daemon tests for prompt lifecycle, delivery failures, and worker behavior, plus web template tests and CI coverage for `@adam/web`.
+- Added session-scoped remote-prompt consent gating, prompt idempotency via `clientPromptId`, and lease-based prompt recovery protections.
+- Added device-scoped relay session identifiers for prompt routing so prompts target the intended daemon session.
+- Added daemon prompt-worker checks for attached session matching and prompt lease window safety before Codex execution.
+- Hardened web proxy token handling by removing bootstrap token exposure and moving token transport out of query strings.
 
 ### Decisions
 
@@ -41,3 +49,5 @@ This changelog records meaningful planning and implementation changes between co
 - Use stdin-driven `codex exec --json` parsing patterns from real external integrations for safe prompt forwarding and resilient event normalization.
 - Keep Cursor and Cowork integration in research-only status until official, verifiable surfaces and terms are confirmed.
 - Keep the in-memory relay store as a Milestone 2 development implementation and block default production startup until persistent shared storage is wired.
+- Keep Milestone 3 remote prompting scoped to explicit delivery-state visibility and failure transparency before introducing higher-risk approval-gated actions.
+- Require explicit per-session remote prompt consent and idempotent delivery semantics before prompting is treated as safe for routine use.

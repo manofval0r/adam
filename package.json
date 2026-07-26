@@ -11,10 +11,14 @@
     "daemon:build": "npm run build --workspace @adam/daemon",
     "daemon:test": "npm run test --workspace @adam/daemon",
     "daemon:health": "npm run health --workspace @adam/daemon --",
+    "daemon:relay-once": "npm run relay:once --workspace @adam/daemon --",
     "relay:build": "npm run build --workspace @adam/relay",
     "relay:test": "npm run test --workspace @adam/relay",
     "relay:start": "npm run start --workspace @adam/relay --",
-    "ci": "npm run check && npm run daemon:test && npm run daemon:build && npm run relay:test && npm run relay:build"
+    "web:build": "npm run build --workspace @adam/web",
+    "web:test": "npm run test --workspace @adam/web",
+    "web:start": "npm run start --workspace @adam/web --",
+    "ci": "npm run check && npm run daemon:test && npm run daemon:build && npm run relay:test && npm run relay:build && npm run web:test && npm run web:build"
   },
   "devDependencies": {
     "@types/node": "^20.17.2",

@@ -6,11 +6,11 @@ This checklist is the live execution tracker for the project. Update it whenever
 
 | Field | Value |
 | --- | --- |
-| Current phase | Milestone 3: Mobile prompt and activity feed |
-| Current slice | Slice 3.1: Prompt UI and activity feed baseline |
+| Current phase | Milestone 4: Decision and permission gates |
+| Current slice | Slice 4.1: Decision and permission event surfaces |
 | Primary platform | OpenAI Codex CLI |
-| Current risk focus | Keep remote prompt and activity flows secure while preserving clear permission boundaries |
-| Next milestone | Milestone 4: Decision and permission gates |
+| Current risk focus | Keep approvals explicit and auditable before enabling higher-risk remote actions |
+| Next milestone | Milestone 5: Repository change visibility |
 
 ## Milestone 0: Foundation and planning
 
@@ -87,14 +87,14 @@ This checklist is the live execution tracker for the project. Update it whenever
 
 ## Milestone 3: Mobile prompt and activity feed
 
-- [ ] Create mobile/web prompt UI.
-- [ ] Create activity feed UI.
-- [ ] Sync events from relay to client.
-- [ ] Submit prompt from client to relay.
-- [ ] Relay prompt from daemon to Codex.
-- [ ] Display prompt delivery state.
-- [ ] Display failure states.
-- [ ] Validate one full phone-to-Codex-to-feed loop.
+- [x] Create mobile/web prompt UI.
+- [x] Create activity feed UI.
+- [x] Sync events from relay to client.
+- [x] Submit prompt from client to relay.
+- [x] Relay prompt from daemon to Codex.
+- [x] Display prompt delivery state.
+- [x] Display failure states.
+- [x] Validate one full phone-to-Codex-to-feed loop.
 
 ## Milestone 4: Decision and permission gates
 

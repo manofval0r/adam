@@ -26,7 +26,16 @@ This document defines Milestone 2 transport and reconnect assumptions for the Ad
    - `GET /v1/sessions` and `GET /v1/devices` derive user scope from authenticated device token.
    - Client-supplied user identifiers are not trusted.
 
-6. **Pairing codes are short-lived and single-use.**
+6. **Remote prompt submission requires explicit session consent.**
+   - Daemon heartbeats must mark each session `remotePromptConsent=true` before relay accepts remote prompts.
+   - If consent is revoked, queued prompts are failed before delivery.
+
+7. **Prompt delivery is idempotent and lease-protected.**
+   - Prompt submission requires `clientPromptId` and deduplicates retries by user/session/idempotency key.
+   - Daemon dequeues receive a lease window (`RELAY_PROMPT_LEASE_SECONDS`, default 180).
+   - Expired in-flight deliveries are re-queued with explicit feed events.
+
+8. **Pairing codes are short-lived and single-use.**
    - Pairing codes expire quickly (`RELAY_PAIRING_CODE_TTL_SECONDS`, default 180).
    - Reuse is rejected.
 

@@ -10,6 +10,7 @@ function relayConfig(): RelayConfig {
     port: 8787,
     pairingCodeTtlSeconds: 180,
     heartbeatStaleSeconds: 45,
+    promptLeaseSeconds: 60,
     deviceTokenTtlDays: 30,
     enforceTlsInProduction: false,
     trustProxy: false,

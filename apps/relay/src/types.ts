@@ -1,6 +1,14 @@
 export type DeviceStatus = "paired" | "connected" | "disconnected" | "revoked";
 
 export type SessionStatus = "active" | "idle" | "failed" | "disconnected";
+export type PromptDeliveryState =
+  | "queued"
+  | "relay_received"
+  | "daemon_received"
+  | "adapter_sent"
+  | "acknowledged"
+  | "failed";
+export type RelayEventType = "message" | "activity" | "prompt_delivery" | "error";
 
 export interface RelayUser {
   id: string;
@@ -33,15 +41,84 @@ export interface PairingCodeRecord {
 }
 
 export interface RelaySession {
+  relaySessionId: string;
   id: string;
   userId: string;
   deviceId: string;
   tool: "codex_cli" | "unknown";
   repoPath?: string;
   branch?: string;
+  remotePromptConsent: boolean;
   status: SessionStatus;
   lastActivityAt: string;
   updatedAt: string;
+}
+
+export interface RelayPrompt {
+  id: string;
+  userId: string;
+  deviceId: string;
+  sessionId: string;
+  text: string;
+  state: PromptDeliveryState;
+  deliveryAttemptCount: number;
+  createdAt: string;
+  updatedAt: string;
+  dequeuedAt?: string;
+  leaseExpiresAt?: string;
+  completedAt?: string;
+  errorCode?: string;
+  errorMessage?: string;
+  assistantText?: string;
+  clientPromptId?: string;
+}
+
+export interface PromptStatusUpdateInput {
+  state: "adapter_sent" | "acknowledged" | "failed";
+  errorCode?: string;
+  errorMessage?: string;
+  assistantText?: string;
+}
+
+export interface RelayMessageEventPayload {
+  role: "user" | "assistant" | "system";
+  text: string;
+  format: "plain_text" | "markdown";
+  promptId?: string;
+}
+
+export interface RelayActivityEventPayload {
+  title: string;
+  body?: string;
+  status: "started" | "in_progress" | "completed" | "blocked" | "failed";
+  category: "syncing" | "waiting" | "other";
+  promptId?: string;
+}
+
+export interface RelayPromptDeliveryPayload {
+  promptId: string;
+  state: PromptDeliveryState;
+  errorCode?: string;
+  errorMessage?: string;
+}
+
+export interface RelayErrorEventPayload {
+  code: string;
+  message: string;
+  severity: "warning" | "error" | "critical";
+  retryable: boolean;
+  promptId?: string;
+}
+
+export interface RelayEvent {
+  id: string;
+  userId: string;
+  sessionId: string;
+  type: RelayEventType;
+  sequence: number;
+  createdAt: string;
+  correlationId?: string;
+  payload: RelayMessageEventPayload | RelayActivityEventPayload | RelayPromptDeliveryPayload | RelayErrorEventPayload;
 }
 
 export interface SessionHeartbeatInput {
@@ -51,11 +128,21 @@ export interface SessionHeartbeatInput {
   repoPath?: string;
   branch?: string;
   lastActivityAt?: string;
+  remotePromptConsent?: boolean;
 }
 
 export interface DaemonHeartbeatInput {
   daemonVersion: string;
   sessions: SessionHeartbeatInput[];
+}
+
+export interface QueuedPrompt {
+  promptId: string;
+  sessionId: string;
+  text: string;
+  createdAt: string;
+  leaseExpiresAt: string;
+  correlationId: string;
 }
 
 export interface RelayConfig {
@@ -64,6 +151,7 @@ export interface RelayConfig {
   port: number;
   pairingCodeTtlSeconds: number;
   heartbeatStaleSeconds: number;
+  promptLeaseSeconds: number;
   deviceTokenTtlDays: number;
   enforceTlsInProduction: boolean;
   trustProxy: boolean;

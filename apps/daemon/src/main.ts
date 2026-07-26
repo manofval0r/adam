@@ -1,13 +1,16 @@
 import { gatherDaemonHealth } from "./health.js";
 import { runDaemonOnce } from "./daemon.js";
+import { runRelayWorkerOnce } from "./prompt-worker.js";
+import { loadDaemonConfig } from "./config.js";
 
 interface CliFlags {
   json: boolean;
   cwd?: string;
+  once: boolean;
 }
 
 function parseFlags(args: string[]): CliFlags {
-  const flags: CliFlags = { json: false };
+  const flags: CliFlags = { json: false, once: false };
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
@@ -22,6 +25,10 @@ function parseFlags(args: string[]): CliFlags {
       }
       flags.cwd = value;
       index += 1;
+      continue;
+    }
+    if (arg === "--once") {
+      flags.once = true;
     }
   }
 
@@ -35,13 +42,19 @@ function printHelp(): void {
       "",
       "Usage:",
       "  adam-daemon health [--json] [--cwd <path>]",
-      "  adam-daemon start [--json] [--cwd <path>]",
+      "  adam-daemon start [--json] [--cwd <path>] [--once]",
+      "  adam-daemon relay-once [--json] [--cwd <path>]",
       "",
       "Commands:",
       "  health   Show daemon health snapshot (repo, git, codex, latest session).",
-      "  start    Run one daemon cycle and emit session/activity events."
+      "  start    Run daemon cycle, then continue relay polling unless --once is used.",
+      "  relay-once  Send heartbeat, pull queued prompts, run Codex, and report prompt states."
     ].join("\n")
   );
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function printHealthHuman(snapshot: ReturnType<typeof gatherDaemonHealth>["snapshot"]): void {
@@ -103,6 +116,47 @@ async function run(): Promise<void> {
       console.log(`Emitted events: ${result.emittedEvents}`);
       console.log(`Event log: ${result.logPath}`);
       console.log(`Health status: ${result.healthStatus}`);
+    }
+
+    if (flags.once) {
+      return;
+    }
+
+    const config = loadDaemonConfig(cwd);
+    if (!config.relayBaseUrl || !config.relayDeviceToken) {
+      if (!flags.json) {
+        console.log("Relay polling skipped (relayBaseUrl/deviceToken not configured).");
+      }
+      return;
+    }
+
+    while (true) {
+      try {
+        const workerResult = await runRelayWorkerOnce(cwd);
+        if (!flags.json) {
+          console.log(
+            `Relay poll: status=${workerResult.status} fetched=${workerResult.promptsFetched} ack=${workerResult.promptsAcknowledged} failed=${workerResult.promptsFailed}`
+          );
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(`adam-daemon relay error: ${message}`);
+      }
+      await sleep(config.relayPollIntervalMs);
+    }
+
+    return;
+  }
+
+  if (command === "relay-once") {
+    const result = await runRelayWorkerOnce(cwd);
+    if (flags.json) {
+      console.log(JSON.stringify(result, null, 2));
+    } else {
+      console.log(`Status: ${result.status}`);
+      console.log(`Prompts fetched: ${result.promptsFetched}`);
+      console.log(`Prompts acknowledged: ${result.promptsAcknowledged}`);
+      console.log(`Prompts failed: ${result.promptsFailed}`);
     }
     return;
   }
