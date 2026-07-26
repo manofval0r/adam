@@ -10,6 +10,7 @@ const requiredFiles = [
   "docs/adapter-contract.md",
   "docs/architecture-decisions.md",
   "docs/legal-safety-risk-register.md",
+  "docs/integration-surface-research.md",
   "docs/continuous-checklist.md",
   "docs/changelog.md",
 ];

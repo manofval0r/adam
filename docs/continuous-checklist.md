@@ -6,11 +6,11 @@ This checklist is the live execution tracker for the project. Update it whenever
 
 | Field | Value |
 | --- | --- |
-| Current phase | Milestone 1: Local daemon prototype |
-| Current slice | Slice 1.1: Daemon skeleton and repo detection |
+| Current phase | Milestone 2: Cloud relay and pairing |
+| Current slice | Slice 2.1: Relay skeleton and device model |
 | Primary platform | OpenAI Codex CLI |
-| Current risk focus | Prove the local remote-control loop before cloud execution or native mobile complexity |
-| Next milestone | Milestone 2: Cloud relay and pairing |
+| Current risk focus | Keep relay/pairing secure and resilient without introducing heavy infrastructure too early |
+| Next milestone | Milestone 3: Mobile prompt and activity feed |
 
 ## Milestone 0: Foundation and planning
 
@@ -59,19 +59,22 @@ This checklist is the live execution tracker for the project. Update it whenever
 
 ### Slice 1.1: Daemon skeleton and repo detection
 
-- [ ] Create daemon package/app skeleton.
-- [ ] Add local configuration loading.
-- [ ] Detect current repo path.
-- [ ] Detect current branch and git status.
-- [ ] Detect Codex CLI availability.
-- [ ] Detect or resume one Codex session.
-- [ ] Emit local `session_started` event.
-- [ ] Emit local `activity` events.
-- [ ] Write local event log.
-- [ ] Add local health command or endpoint.
-- [ ] Add basic daemon tests.
+- [x] Create daemon package/app skeleton.
+- [x] Add local configuration loading.
+- [x] Detect current repo path.
+- [x] Detect current branch and git status.
+- [x] Detect Codex CLI availability.
+- [x] Detect or resume one Codex session.
+- [x] Emit local `session_started` event.
+- [x] Emit local `activity` events.
+- [x] Write local event log.
+- [x] Add local health command or endpoint.
+- [x] Add basic daemon tests.
+- [x] Add CI workflow for docs + daemon checks.
 
 ## Milestone 2: Cloud relay and pairing
+
+### Slice 2.1: Relay skeleton and device model
 
 - [ ] Create relay API skeleton.
 - [ ] Add user/device model.
@@ -151,6 +154,7 @@ This checklist is the live execution tracker for the project. Update it whenever
 - [ ] Bring-your-own storage connector proof of concept.
 - [ ] Bring-your-own runner/workspace proof of concept.
 - [ ] GitHub Codespaces or Actions runner research spike.
+- [x] Integration surface research for Codex, Claude Code, Copilot, Antigravity, Cursor, and Cowork.
 
 ## Checklist update rules
 

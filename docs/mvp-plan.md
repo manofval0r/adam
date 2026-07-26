@@ -40,7 +40,7 @@ Build the first usable version of Adam around OpenAI Codex CLI because it has th
 | --- | --- |
 | Repo structure | TypeScript monorepo with pnpm and Turborepo. |
 | Shared contracts | Zod schemas for normalized events, permissions, devices, sessions, and prompt delivery states. |
-| Desktop daemon | Node.js TypeScript CLI/service with SQLite for local event log and retry queue. |
+| Desktop daemon | Node.js TypeScript CLI/service with JSONL local event log in Milestone 1, with SQLite as the next upgrade path for richer queue/query behavior. |
 | Cloud relay/API | Node.js TypeScript using Fastify by default; consider NestJS only if the service grows into many modules quickly. |
 | Cloud database | Postgres, with Supabase as the easiest early managed option. |
 | Realtime | WebSockets between daemon and relay; SSE or WebSockets between relay and web/mobile clients. |

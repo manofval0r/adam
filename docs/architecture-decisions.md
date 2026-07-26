@@ -9,10 +9,10 @@ This document records the Milestone 0 technical decisions for Adam's free/low-co
 | MVP shape | Local-first remote control loop | Proves the core product without paying for hosted workspaces. |
 | Primary integration | Codex CLI local adapter | Lowest-risk first control surface and aligns with the current product direction. |
 | Repo structure | TypeScript monorepo with `apps/*` and `packages/*` | Shared types and schemas across daemon, relay, web, and future mobile. |
-| Package manager | pnpm | Fast, workspace-friendly, and cost-free. |
+| Package manager | npm workspaces (M1), pnpm optional later | Zero-friction setup for feasibility; no extra tooling required to start coding and running CI. |
 | Build orchestration | Turborepo later, not required on day one | Useful once there are multiple packages; avoid unnecessary setup before the first daemon/API packages exist. |
-| Desktop daemon runtime | Node.js TypeScript CLI/service | Best early fit for spawning CLI tools, inspecting git, writing SQLite, and sharing event schemas. |
-| Local event storage | SQLite | Durable, local, free, and simple for event logs, cursors, retry state, and offline queueing. |
+| Desktop daemon runtime | Node.js TypeScript CLI/service | Best early fit for spawning CLI tools, inspecting git, writing local logs, and sharing event schemas. |
+| Local event storage | JSONL append log for Milestone 1; SQLite upgrade path | Keeps Milestone 1 dependency-free while preserving normalized events. SQLite can be added for richer querying and cursor durability. |
 | Cloud relay/API | Node.js TypeScript with Fastify | Lean HTTP/WebSocket API with good TypeScript ergonomics and fewer framework constraints than NestJS. |
 | Cloud database | Postgres, with Supabase as the first managed candidate | Free tier is enough for feasibility; relational constraints fit users/devices/sessions/events/audit better than MongoDB. |
 | Web client | Next.js responsive web/PWA first | Faster and cheaper than shipping native mobile first; still usable from mobile browsers. |
@@ -77,15 +77,15 @@ scripts/
 | Distribution for alpha | CLI first; background service/installers later. |
 | Config file | `.adam/config.json` may exist in the project only for non-secret project preferences; user/device secrets belong outside the repo. |
 | Local state path | OS app-data directory by default; `.adam/state/` may be used only for local alpha/dev state and must stay gitignored. |
-| Event log | SQLite database with append-only events table and adapter cursors. |
+| Event log | Append-only JSONL (`.adam/state/events.jsonl`) for Milestone 1 prototype; migrate to SQLite when relay buffering/query needs increase. |
 | Health command | `adam daemon health` should report repo path, branch, git status availability, Codex availability, relay pairing state, and queue depth. |
 | Safety default | No direct remote shell. Dangerous actions require permission events. |
 
 The repository includes a `.gitignore` boundary for `.adam/state/`, local SQLite databases, token-like files, and environment files. Runtime state, prompt history, adapter cursors, and device tokens must not be committed.
 
-### Local SQLite tables
+### Local SQLite upgrade path
 
-Initial implementation should start with:
+When moving beyond Milestone 1 prototype logging, use:
 
 | Table | Purpose |
 | --- | --- |
@@ -104,7 +104,7 @@ Initial implementation should start with:
 | Realtime daemon link | WebSocket with heartbeat and reconnect. |
 | Client feed | SSE first if the feed is read-mostly; WebSocket if prompt status and approvals need one live channel. |
 | Prompt path | Client -> relay -> daemon -> adapter -> Codex CLI. |
-| Event path | Adapter/daemon -> local SQLite -> relay -> client feed. |
+| Event path | Adapter/daemon -> local event log -> relay -> client feed. |
 | Queueing | Start with database-backed pending states; add Redis/BullMQ only when retry volume needs it. |
 | Auth | Start with one-user alpha auth, then GitHub OAuth/GitHub App authorization. |
 
@@ -125,7 +125,7 @@ Pairing codes must be short-lived, single-use, and scoped. Device tokens must be
 | Data | MVP location | Later options |
 | --- | --- | --- |
 | Source code | User's local Git repo and GitHub | Cloud runner ephemeral workspace. |
-| Local events | SQLite | Same, plus relay sync. |
+| Local events | JSONL append log in Milestone 1 | SQLite event store once query/cursor needs justify it. |
 | Relay events | Postgres/Supabase with limits | User-owned database or premium retention. |
 | Large logs/diffs/screenshots | Avoid or store small capped artifacts | S3/R2/Supabase Storage/Cloudinary/BYO. |
 | Secrets | Not stored in MVP | Encrypted vault with short-lived runner injection. |
@@ -154,6 +154,16 @@ Pairing codes must be short-lived, single-use, and scoped. Device tokens must be
 | Project-local state can leak | Local event logs may contain prompt text, file paths, or future token-adjacent metadata. | Store mutable state outside the repo by default and gitignore `.adam/state/`, local databases, and token/secret-like files. |
 | Adapter fragility | Tool internals can change or be legally unclear. | Use green-tier integrations first and keep adapters capability-scoped. |
 | Cost creep | Realtime, storage, native apps, and hosted execution can add costs before product-market fit. | Use free tiers, dependency-free checks, capped retention, web-first UI. |
+
+## Codex integration implementation findings
+
+Milestone 1 implementation follows patterns seen across real Codex external integrations:
+
+1. Spawn `codex exec --json` and parse NDJSON incrementally.
+2. Favor stdin prompt injection (`-`) to avoid shell-quoting and injection issues.
+3. Track latest resumable session candidates from `~/.codex/sessions/**/*.jsonl`.
+4. Emit normalized `session_started` and `activity` events into local log before cloud relay exists.
+5. Treat parser and process errors as first-class states (not silent success).
 
 ## Decisions deferred
 

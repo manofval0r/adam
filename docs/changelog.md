@@ -18,6 +18,9 @@ This changelog records meaningful planning and implementation changes between co
 - Added legal/safety risk register covering integration tiers, permissions, consent copy, retention, unsupported integrations, and launch gates.
 - Added dependency-free documentation health checks and a GitHub Actions workflow.
 - Added `.gitignore` protection for Adam runtime state, local databases, environment files, and token/secret-like files.
+- Added Milestone 1 daemon implementation (`apps/daemon`) with config loading, repo/git detection, Codex availability and session discovery, local event logging, and health command.
+- Added daemon tests and CI workflow for build/test/docs checks.
+- Added integration surface research notes for Codex, Claude Code, GitHub Copilot, Antigravity, Cursor, and Cowork.
 
 ### Decisions
 
@@ -29,5 +32,7 @@ This changelog records meaningful planning and implementation changes between co
 - Separate premium laptop-off execution from lightweight relay/storage features because agent runtime cost is driven by compute, workspace disk, dependency caches, and sandboxing.
 - Prefer a TypeScript-first monorepo for MVP speed, with Postgres/Supabase for relay state, Expo React Native for mobile, Next.js for web, and Node.js TypeScript for the first daemon/API implementation.
 - Use normalized events and explicit adapter capabilities as the foundation for the daemon, relay, mobile/web feed, permission gates, and future cloud runners.
-- Keep the feasibility MVP free/low-cost by building a responsive web/PWA first, using local SQLite and Supabase/Postgres free-tier relay state, and deferring native mobile, hosted execution, BYO connectors, billing, and sandbox infrastructure.
+- Keep the feasibility MVP free/low-cost by building a responsive web/PWA first, using local JSONL event logs plus Supabase/Postgres free-tier relay state, and deferring native mobile, hosted execution, BYO connectors, billing, and sandbox infrastructure.
 - Treat pre-permission-gate remote prompt forwarding as local/dev-only until session-level consent, audit events, and blocked approval-state visibility are in place.
+- Use stdin-driven `codex exec --json` parsing patterns from real external integrations for safe prompt forwarding and resilient event normalization.
+- Keep Cursor and Cowork integration in research-only status until official, verifiable surfaces and terms are confirmed.
