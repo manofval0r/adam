@@ -1,0 +1,12 @@
+{
+  "name": "adam",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Remote control platform for AI coding agents.",
+  "scripts": {
+    "check": "node scripts/check-docs.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

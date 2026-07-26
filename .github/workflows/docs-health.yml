@@ -1,0 +1,29 @@
+name: Docs health
+
+on:
+  push:
+    branches:
+      - main
+      - manofval0r-mobile-agent-control-plan
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  docs-health:
+    name: Documentation health
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Run documentation health check
+        run: npm run check

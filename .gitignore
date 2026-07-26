@@ -1,0 +1,19 @@
+# Local Adam runtime state
+.adam/state/
+.adam/cache/
+.adam/*.db
+.adam/*.sqlite
+.adam/*.sqlite3
+.adam/*token*
+.adam/*secret*
+
+# Environment and local secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies and build output
+node_modules/
+dist/
+build/
+.turbo/

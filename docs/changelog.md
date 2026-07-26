@@ -14,6 +14,10 @@ This changelog records meaningful planning and implementation changes between co
 - Added a recommended technology stack for the MVP and later cloud-execution phases.
 - Added implementation-ready normalized event schema documentation.
 - Added adapter contract documentation for Codex CLI and future coding-agent integrations.
+- Added architecture decisions for the free MVP, daemon, relay, storage, auth/pairing, and implementation layout.
+- Added legal/safety risk register covering integration tiers, permissions, consent copy, retention, unsupported integrations, and launch gates.
+- Added dependency-free documentation health checks and a GitHub Actions workflow.
+- Added `.gitignore` protection for Adam runtime state, local databases, environment files, and token/secret-like files.
 
 ### Decisions
 
@@ -25,3 +29,5 @@ This changelog records meaningful planning and implementation changes between co
 - Separate premium laptop-off execution from lightweight relay/storage features because agent runtime cost is driven by compute, workspace disk, dependency caches, and sandboxing.
 - Prefer a TypeScript-first monorepo for MVP speed, with Postgres/Supabase for relay state, Expo React Native for mobile, Next.js for web, and Node.js TypeScript for the first daemon/API implementation.
 - Use normalized events and explicit adapter capabilities as the foundation for the daemon, relay, mobile/web feed, permission gates, and future cloud runners.
+- Keep the feasibility MVP free/low-cost by building a responsive web/PWA first, using local SQLite and Supabase/Postgres free-tier relay state, and deferring native mobile, hosted execution, BYO connectors, billing, and sandbox infrastructure.
+- Treat pre-permission-gate remote prompt forwarding as local/dev-only until session-level consent, audit events, and blocked approval-state visibility are in place.

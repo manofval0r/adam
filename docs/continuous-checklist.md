@@ -6,11 +6,11 @@ This checklist is the live execution tracker for the project. Update it whenever
 
 | Field | Value |
 | --- | --- |
-| Current phase | Milestone 0: Foundation and planning |
-| Current slice | Slice 0.1: Planning documentation |
+| Current phase | Milestone 1: Local daemon prototype |
+| Current slice | Slice 1.1: Daemon skeleton and repo detection |
 | Primary platform | OpenAI Codex CLI |
-| Current risk focus | Avoid fragile/legally grey integrations before the core relay works |
-| Next milestone | Milestone 1: Local daemon prototype |
+| Current risk focus | Prove the local remote-control loop before cloud execution or native mobile complexity |
+| Next milestone | Milestone 2: Cloud relay and pairing |
 
 ## Milestone 0: Foundation and planning
 
@@ -24,36 +24,40 @@ This checklist is the live execution tracker for the project. Update it whenever
 - [x] Add recommended technology stack to planning docs.
 - [x] Draft normalized event schema in implementation-ready detail.
 - [x] Draft adapter contract.
-- [ ] Draft legal/safety risk register.
+- [x] Draft legal/safety risk register.
+- [x] Add architecture decisions.
+- [x] Add GitHub Actions documentation health check.
 
 ### Slice 0.2: Architecture decisions
 
-- [ ] Choose desktop daemon runtime.
-- [ ] Choose mobile app stack.
-- [ ] Choose cloud/API stack.
-- [ ] Confirm TypeScript monorepo package layout.
-- [ ] Confirm shared schema/contract tooling.
-- [ ] Confirm Postgres/Supabase versus self-hosted Postgres for first relay.
-- [ ] Confirm WebSocket/SSE transport boundaries.
-- [ ] Choose storage model for relay state.
-- [ ] Define Adam-hosted versus user-owned storage boundaries.
-- [ ] Define repo, artifact, and retention limits for free/light usage.
-- [ ] Define bring-your-own storage connector requirements.
-- [ ] Define bring-your-own runner/workspace connector requirements.
-- [ ] Choose local daemon config format.
-- [ ] Define local event log format.
-- [ ] Define auth and pairing flow at a technical level.
+- [x] Choose desktop daemon runtime.
+- [x] Choose mobile app stack.
+- [x] Choose cloud/API stack.
+- [x] Confirm TypeScript monorepo package layout.
+- [x] Confirm shared schema/contract tooling.
+- [x] Confirm Postgres/Supabase versus self-hosted Postgres for first relay.
+- [x] Confirm WebSocket/SSE transport boundaries.
+- [x] Choose storage model for relay state.
+- [x] Define Adam-hosted versus user-owned storage boundaries.
+- [x] Define repo, artifact, and retention limits for free/light usage.
+- [x] Define bring-your-own storage connector requirements.
+- [x] Define bring-your-own runner/workspace connector requirements.
+- [x] Choose local daemon config format.
+- [x] Define local event log format.
+- [x] Define auth and pairing flow at a technical level.
 
 ### Slice 0.3: Legal and safety preparation
 
-- [ ] Classify integrations into green/yellow/red risk tiers.
-- [ ] Write permission model for shell, file, repo, network, and system access.
-- [ ] Write user consent copy for dangerous actions.
-- [ ] Write data retention assumptions.
-- [ ] List questions for legal review.
-- [ ] Mark unsupported/experimental integrations clearly.
+- [x] Classify integrations into green/yellow/red risk tiers.
+- [x] Write permission model for shell, file, repo, network, and system access.
+- [x] Write user consent copy for dangerous actions.
+- [x] Write data retention assumptions.
+- [x] List questions for legal review.
+- [x] Mark unsupported/experimental integrations clearly.
 
 ## Milestone 1: Local daemon prototype
+
+### Slice 1.1: Daemon skeleton and repo detection
 
 - [ ] Create daemon package/app skeleton.
 - [ ] Add local configuration loading.

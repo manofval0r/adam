@@ -67,6 +67,7 @@ Deliverables:
 - Changelog process.
 - Initial normalized event schema draft.
 - Initial adapter contract draft.
+- Architecture decisions.
 - Legal/safety risk register.
 
 Definition of done:
@@ -75,6 +76,8 @@ Definition of done:
 - MVP scope is explicit.
 - Platform priority order is explicit.
 - Event schema and adapter contract are documented enough to begin implementation.
+- Architecture, safety, and free-MVP constraints are explicit.
+- GitHub Actions health checks are configured for documentation quality.
 - Current work slice is visible in the checklist.
 
 ### Milestone 1: Local daemon prototype
@@ -128,12 +131,15 @@ Deliverables:
 - Prompt submission endpoint.
 - Daemon-side prompt relay into Codex.
 - Error states for offline daemon, stopped session, or failed prompt delivery.
+- Session-level consent that remote prompts may trigger agent-side file, shell, network, or repo actions.
+- Local/dev-only labeling until blocked tool approval states are surfaced safely.
 
 Definition of done:
 
 - User can send a prompt from phone/web to the local Codex session.
 - Resulting activity appears in the feed.
 - Failures are visible and actionable.
+- Prompt forwarding is not presented as safe for alpha users until minimum consent, audit, and blocked-state visibility exist.
 
 ### Milestone 4: Decision and permission gates
 
@@ -147,6 +153,7 @@ Deliverables:
 - Consent screen for shell/system-level access.
 - Audit log for approvals.
 - Notification trigger when input is required.
+- Remote surfacing for underlying agent approval/tool-blocked states.
 
 Definition of done:
 
