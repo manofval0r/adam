@@ -6,11 +6,11 @@ This checklist is the live execution tracker for the project. Update it whenever
 
 | Field | Value |
 | --- | --- |
-| Current phase | Milestone 2: Cloud relay and pairing |
-| Current slice | Slice 2.1: Relay skeleton and device model |
+| Current phase | Milestone 3: Mobile prompt and activity feed |
+| Current slice | Slice 3.1: Prompt UI and activity feed baseline |
 | Primary platform | OpenAI Codex CLI |
-| Current risk focus | Keep relay/pairing secure and resilient without introducing heavy infrastructure too early |
-| Next milestone | Milestone 3: Mobile prompt and activity feed |
+| Current risk focus | Keep remote prompt and activity flows secure while preserving clear permission boundaries |
+| Next milestone | Milestone 4: Decision and permission gates |
 
 ## Milestone 0: Foundation and planning
 
@@ -76,14 +76,14 @@ This checklist is the live execution tracker for the project. Update it whenever
 
 ### Slice 2.1: Relay skeleton and device model
 
-- [ ] Create relay API skeleton.
-- [ ] Add user/device model.
-- [ ] Add pairing flow.
-- [ ] Add daemon heartbeat.
-- [ ] Add client session list.
-- [ ] Add encrypted transport assumptions.
-- [ ] Add reconnect behavior.
-- [ ] Add relay tests.
+- [x] Create relay API skeleton.
+- [x] Add user/device model.
+- [x] Add pairing flow.
+- [x] Add daemon heartbeat.
+- [x] Add client session list.
+- [x] Add encrypted transport assumptions.
+- [x] Add reconnect behavior.
+- [x] Add relay tests.
 
 ## Milestone 3: Mobile prompt and activity feed
 

@@ -10,5 +10,6 @@ A platform across desktop, web and mobile for syncing agent sessions, allowing r
 - [Architecture decisions](docs/architecture-decisions.md) - confirmed MVP technical decisions, stack boundaries, local storage, relay design, and feasibility constraints.
 - [Legal/safety risk register](docs/legal-safety-risk-register.md) - integration risk tiers, permission model, consent copy, retention assumptions, and legal review questions.
 - [Integration surface research](docs/integration-surface-research.md) - practical integration methods and risk posture across Codex, Claude Code, Copilot, Antigravity, Cursor, and Cowork.
+- [Relay transport assumptions](docs/relay-transport-assumptions.md) - Milestone 2 TLS, pairing-token, and reconnect assumptions for relay/device communication.
 - [Continuous checklist](docs/continuous-checklist.md) - live execution checklist for the active milestone and slices.
 - [Changelog](docs/changelog.md) - documentation of meaningful planning and implementation changes between commits.

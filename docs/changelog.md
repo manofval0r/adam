@@ -21,6 +21,10 @@ This changelog records meaningful planning and implementation changes between co
 - Added Milestone 1 daemon implementation (`apps/daemon`) with config loading, repo/git detection, Codex availability and session discovery, local event logging, and health command.
 - Added daemon tests and CI workflow for build/test/docs checks.
 - Added integration surface research notes for Codex, Claude Code, GitHub Copilot, Antigravity, Cursor, and Cowork.
+- Added Milestone 2 relay implementation (`apps/relay`) with pairing-code issuance, pairing exchange, bearer-token auth, daemon heartbeat ingestion, reconnect tracking, and user-scoped session/device listing.
+- Added relay tests for production transport enforcement, bootstrap-key authorization, token expiry, and cross-user isolation.
+- Added relay production startup protection that blocks default in-memory store usage unless explicitly overridden.
+- Added relay transport and reconnect assumptions documentation for Milestone 2.
 
 ### Decisions
 
@@ -36,3 +40,4 @@ This changelog records meaningful planning and implementation changes between co
 - Treat pre-permission-gate remote prompt forwarding as local/dev-only until session-level consent, audit events, and blocked approval-state visibility are in place.
 - Use stdin-driven `codex exec --json` parsing patterns from real external integrations for safe prompt forwarding and resilient event normalization.
 - Keep Cursor and Cowork integration in research-only status until official, verifiable surfaces and terms are confirmed.
+- Keep the in-memory relay store as a Milestone 2 development implementation and block default production startup until persistent shared storage is wired.

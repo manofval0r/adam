@@ -11,6 +11,7 @@ const requiredFiles = [
   "docs/architecture-decisions.md",
   "docs/legal-safety-risk-register.md",
   "docs/integration-surface-research.md",
+  "docs/relay-transport-assumptions.md",
   "docs/continuous-checklist.md",
   "docs/changelog.md",
 ];
@@ -116,5 +117,4 @@ if (errors.length > 0) {
   }
   process.exit(1);
 }
-console.log(`Documentation health check passed for ${markdownFiles.length} markdown files.`);
 console.log(`Documentation health check passed for ${markdownFiles.length} markdown files.`);
