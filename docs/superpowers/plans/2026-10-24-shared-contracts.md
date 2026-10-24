@@ -37,11 +37,11 @@ This plan is deliberately split across two milestones, because the shared packag
 
 These are the input classes and failure modes the specification implies but no task's tests exercise on its own. Each line is pinned by a test in the task that owns the relevant code.
 
-1. An event arriving with an unrecognised `type` string, from a client on a newer build. The relay must reject it without crashing the ingest loop and without dropping later events in the same batch.
-2. An event payload containing a user-controlled string that happens to look like a structural field name. User text in a prompt, repo path, or tool output must never be reinterpreted as schema structure.
-3. A device whose clock is wrong by hours or is set to a past date. Event ordering must not depend on a device-supplied timestamp.
-4. A connector manifest that declares a scope which is not justified by any capability it lists, or omits a capability that a granted scope implies. The manifest must fail validation.
-5. A permission decision arriving for a request that does not exist, or for a request that was already decided. The decision must be rejected rather than silently applied or ignored.
+1. An event arriving with an unrecognised `type` string, from a client on a newer build. The relay must reject it without crashing the ingest loop and without dropping later events in the same batch. Owned by Task 1 for the schema-level rejection. The batch and ingest behaviour is deferred: there is no daemon-to-relay event ingest endpoint today, so that requirement belongs to the milestone that adds event upload.
+2. An event payload containing a user-controlled string that happens to look like a structural field name. User text in a prompt, repo path, or tool output must never be reinterpreted as schema structure. Owned by Task 1.
+3. A device whose clock is wrong by hours or is set to a past date. Event ordering must not depend on a device-supplied timestamp. Owned by the cloud platform plan, whose Postgres store orders by ingestion sequence rather than by the device clock.
+4. A connector manifest that declares a scope which is not justified by any capability it lists, or omits a capability that a granted scope implies. The manifest must fail validation. Owned by Task 3.
+5. A permission decision arriving for a request that does not exist, or for a request that was already decided. The decision must be rejected rather than silently applied or ignored. Owned by Task 2.
 
 ---
 
@@ -54,8 +54,7 @@ These are the input classes and failure modes the specification implies but no t
 - Create: `packages/contracts/src/index.ts`
 - Create: `packages/contracts/src/events.ts`
 - Create: `packages/contracts/test/events.test.ts`
-- Modify: `package.json` (workspaces array)
-- Modify: `tsconfig.base.json` (path mapping for `@adam/contracts`)
+- Modify: `package.json` (root, workspaces array)
 
 **Interfaces:**
 - Consumes: nothing. This task is the root of the shared dependency graph.
@@ -74,7 +73,17 @@ These are the input classes and failure modes the specification implies but no t
   - `parseEventEnvelope(input: unknown): EventEnvelope` — throws `ContractValidationError` on failure.
   - `ContractValidationError` — error class carrying `issues: string[]`.
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Wire the package into the workspace**
+
+This step comes before the test, because the test command is `npm run test --workspace @adam/contracts` and that command cannot run until the workspace knows the package exists. Wiring first also means the red phase fails for the right reason.
+
+Create `packages/contracts/package.json` with name `@adam/contracts`, `private: true`, `type: "module"`, a `main` pointing at `dist/index.js`, a `types` field pointing at `dist/index.d.ts`, an `exports` map whose `types` condition points at `dist/index.d.ts` and whose `import` condition points at `dist/index.js`, and scripts `build` running `tsc -p tsconfig.json` and `test` running `vitest run`. Add `"packages/*"` to the `workspaces` array in the root `package.json`, and add `zod` as a dependency of the root `package.json` so exactly one copy is hoisted for the whole workspace.
+
+Create `packages/contracts/tsconfig.json` extending the root base with `composite` enabled, `declaration` and `declarationMap` enabled, an `outDir` of `dist`, a `rootDir` of `src`, and `include` of `src`. Create `packages/contracts/vitest.config.ts` mirroring the existing app configs: `environment: "node"`, `include: ["test/**/*.test.ts"]`.
+
+Do not add a path mapping for `@adam/contracts` to `tsconfig.base.json`. A path mapping would point the app compilers at the package source, which sits outside each app's `rootDir` of `src` and breaks the app build with a rootDir error. Resolution goes through the npm workspace symlink and the built `dist` output instead.
+
+- [ ] **Step 2: Write the failing test**
 
 Create `packages/contracts/test/events.test.ts` with these cases:
 
@@ -137,12 +146,12 @@ describe("EventEnvelopeSchema", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [ ] **Step 3: Run the test to verify it fails**
 
 Run: `npm run test --workspace @adam/contracts`
 Expected: FAIL with a module-not-found error for `../src/events.js`.
 
-- [ ] **Step 3: Implement the event envelope schema in `packages/contracts/src/events.ts`**
+- [ ] **Step 4: Implement the event envelope schema in `packages/contracts/src/events.ts`**
 
 Export `SCHEMA_VERSION` as the constant `"2026-07-26"`.
 
@@ -174,12 +183,6 @@ Export `parseEventEnvelope` that calls `EventEnvelopeSchema.safeParse`, and on f
 
 The schema must not inspect the contents of `payload` beyond requiring an object, so that user text inside a payload can never be interpreted as structure.
 
-- [ ] **Step 4: Wire the package into the workspace**
-
-Create `packages/contracts/package.json` with name `@adam/contracts`, `private: true`, `type: "module`, a `main` pointing at `dist/index.js`, a `types` field pointing at `dist/index.d.ts`, and scripts `build` running `tsc -p tsconfig.json` and `test` running `vitest run`. Add `"packages/*"` to the `workspaces` array in the root `package.json`. Extend `tsconfig.base.json` so `@adam/contracts` resolves to the package source during development.
-
-Create `packages/contracts/tsconfig.json` extending the root base with an `outDir` of `dist`, `rootDir` of `src`, and `include` of `src`. Create `packages/contracts/vitest.config.ts` mirroring the existing app configs: `environment: "node"`, `include: ["test/**/*.test.ts"]`.
-
 Create `packages/contracts/src/index.ts` re-exporting everything from `./events.js`.
 
 - [ ] **Step 5: Run the test to verify it passes**
@@ -190,7 +193,7 @@ Expected: PASS, 8 tests.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add packages/contracts package.json tsconfig.base.json package-lock.json
+git add packages/contracts package.json package-lock.json
 git commit -m "feat(contracts): add shared event envelope schema package"
 ```
 
@@ -204,7 +207,7 @@ git commit -m "feat(contracts): add shared event envelope schema package"
 - Modify: `packages/contracts/src/index.ts`
 
 **Interfaces:**
-- Consumes: `EventType` and `EventEnvelopeSchema` from `packages/contracts/src/events.ts`.
+- Consumes: `AdamEventType` and `EventEnvelopeSchema` from `packages/contracts/src/events.ts`.
 - Produces:
   - `RiskTier` — union of `"green" | "yellow" | "red"`.
   - `PermissionRequestSchema` — Zod object for `{ requestId, sessionId, subject, capability, riskTier, summary, details, requestedAt }`.
@@ -276,8 +279,9 @@ git commit -m "feat(contracts): add permission request and decision schemas"
 - Consumes: `RiskTier` from `packages/contracts/src/permission.ts`, `EventEnvelopeSchema` from `packages/contracts/src/events.ts`.
 - Produces:
   - `ConnectorAuthKind` — union of `"oauth2_pkce" | "api_key" | "personal_access_token"`.
-  - `ConnectorManifestSchema` — strict object for `{ id, displayName, version, riskTier, authKind, capabilities, scopes, instructions }`.
+  - `ConnectorManifestSchema` — strict object for `{ id, displayName, version, riskTier, authKind, capabilities, scopes, scopeRequirements, instructions }`.
   - `ConnectorCapabilitiesSchema` — strict object for `{ read: string[], write: string[], notify: string[] }`.
+  - `scopeRequirements` — a map from an OAuth scope string to the capability that justifies it. Every entry in `scopes` must appear as a key, and every referenced capability must be declared in one of the capability lists.
   - `ConnectorConnectionStatus` — union of `"pending" | "active" | "expired" | "revoked"`.
   - `ConnectorConnectionSchema` — strict object for `{ connectionId, providerId, status, scopes, grantedAt, expiresAt }`.
   - `ConnectorActionEventSchema` and `ConnectorConnectionEventSchema` — strict event payload schemas.
@@ -322,6 +326,21 @@ it("returns the stricter of the manifest tier and the capability tier", () => {
   const redManifest = { ...validManifest, riskTier: "red" as const };
   expect(effectiveRiskTier(redManifest, "message.list")).toBe("red");
 });
+
+it("rejects a scope that no declared capability justifies", () => {
+  expect(() => parseConnectorManifest({
+    ...validManifest,
+    scopes: ["gmail.modify"],
+    scopeRequirements: { "gmail.readonly": "message.list" },
+  })).toThrow(/scope/i);
+});
+
+it("rejects a scope requirement naming a capability the manifest does not declare", () => {
+  expect(() => parseConnectorManifest({
+    ...validManifest,
+    scopeRequirements: { "gmail.send": "message.send" },
+  })).toThrow(/capability/i);
+});
 ```
 
 - [ ] **Step 2: Run the test to verify it fails**
@@ -363,7 +382,12 @@ git commit -m "feat(contracts): add connector manifest, connection, and event sc
 - Modify: `apps/daemon/package.json`
 - Modify: `apps/relay/package.json`
 - Modify: `apps/web/package.json`
+- Modify: `apps/daemon/vitest.config.ts`
+- Modify: `apps/relay/vitest.config.ts`
+- Modify: `apps/web/vitest.config.ts`
 - Create: `apps/daemon/test/contracts.test.ts`
+- Create: `apps/daemon/test/event-log.test.ts`
+- Create: `apps/relay/test/contracts.test.ts`
 
 **Interfaces:**
 - Consumes: everything exported by `@adam/contracts`.
@@ -375,12 +399,49 @@ Create `apps/daemon/test/contracts.test.ts` asserting that the daemon's event ty
 
 ```ts
 import { describe, expect, it } from "vitest";
-import { EventType } from "@adam/contracts";
-import { EventType as DaemonEventType } from "../src/types.js";
+import { AdamEventType } from "@adam/contracts";
+import { DaemonEventType } from "../src/types.js";
 
 describe("shared contracts", () => {
   it("uses the shared event type union in the daemon", () => {
-    expect(DaemonEventType).toBe(EventType);
+    expect(DaemonEventType).toBe(AdamEventType);
+  });
+});
+```
+
+Create `apps/relay/test/contracts.test.ts` asserting that every event the relay emits satisfies the shared schema:
+
+```ts
+import { describe, expect, it } from "vitest";
+import { EventEnvelopeSchema } from "@adam/contracts";
+
+describe("relay event conformance", () => {
+  it("emits events that satisfy the shared envelope schema", async () => {
+    await submitPromptViaRelay(app, authHeaders);
+    const response = await app.inject({ method: "GET", url: "/v1/events", headers: authHeaders });
+    const events = response.json().events;
+    expect(events.length).toBeGreaterThan(0);
+    for (const event of events) {
+      expect(EventEnvelopeSchema.safeParse(event).success).toBe(true);
+    }
+  });
+});
+```
+
+The relay currently has no daemon-side event ingest endpoint, so this asserts the property that is actually reachable today: the events the relay produces are valid shared envelopes.
+
+Create `apps/daemon/test/event-log.test.ts` asserting the same property for the daemon's local event log:
+
+```ts
+import { describe, expect, it } from "vitest";
+import { EventEnvelopeSchema } from "@adam/contracts";
+
+describe("daemon event log conformance", () => {
+  it("writes events that satisfy the shared envelope schema", async () => {
+    const log = await writeSampleEvents();
+    for (const line of readLogLines(log)) {
+      expect(EventEnvelopeSchema.safeParse(JSON.parse(line)).success).toBe(true);
+    }
   });
 });
 ```
@@ -396,9 +457,15 @@ In `apps/daemon/src/types.ts`, replace the hand-written event type union with a 
 
 In `apps/relay/src/types.ts`, do the same for the event and permission types.
 
-In `apps/daemon/src/event-log.ts` and `apps/relay/src/server.ts`, replace local construction and validation of event envelopes with `parseEventEnvelope` from `@adam/contracts`. Where the relay currently accepts an event body without validating it, validate before use and respond with a 400 carrying the contract validation issues.
+In `apps/daemon/src/event-log.ts` and `apps/relay/src/server.ts`, replace local construction and validation of event envelopes with `parseEventEnvelope` from `@adam/contracts`. The relay has no event ingest endpoint today, so the migration here is about the events the relay itself constructs, not about validating an inbound body.
 
 Add `"@adam/contracts": "*"` to the dependencies of `apps/daemon/package.json`, `apps/relay/package.json`, and `apps/web/package.json`.
+
+Make the package resolve in both test and build, without a path mapping:
+
+- In each app's `vitest.config.ts`, add a resolve alias mapping `@adam/contracts` to the package source, so a test run never depends on a built or up-to-date `dist`. Use the same alias value in all three apps.
+- In each app's `package.json`, add a `prebuild` script that runs `npm run build --workspace @adam/contracts`, so a standalone app build always has the package's declarations available. npm runs `prebuild` automatically before `build`.
+- In the root `package.json`, put the contracts build before the app builds in the `ci` script.
 
 - [ ] **Step 4: Run the test to verify it passes**
 

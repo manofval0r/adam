@@ -18,6 +18,11 @@ const requiredFiles = [
 
 const errors = [];
 
+// Directories that hold tooling scratch rather than project documentation.
+// `.superpowers` holds the subagent-driven-development workspace (ledger, task
+// briefs, review packages), which is generated and git-ignored.
+const skippedDirectories = new Set([".git", "node_modules", ".superpowers"]);
+
 function toDisplayPath(filePath) {
   return path.relative(root, filePath).split(path.sep).join("/");
 }
@@ -27,7 +32,7 @@ function walk(directory) {
   const files = [];
 
   for (const entry of entries) {
-    if (entry.name === ".git" || entry.name === "node_modules") {
+    if (skippedDirectories.has(entry.name)) {
       continue;
     }
 

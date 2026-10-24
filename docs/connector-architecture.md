@@ -30,6 +30,7 @@ type ConnectorManifest = {
   authKind: "oauth2_pkce" | "api_key" | "personal_access_token";
   capabilities: ConnectorCapabilities;
   scopes: string[];
+  scopeRequirements: Record<string, string>;
   instructions?: { connectUrl?: string; notes: string };
 };
 
@@ -174,6 +175,8 @@ The connector permission model is the Milestone 4 decision gate, applied to capa
 The default tier comes from the connector manifest, and a capability may declare a stricter tier. The effective tier is the stricter of the two.
 
 The scope check happens before the tier check and is absolute. An action is permitted only if the requested capability is present in the grant captured at connection time. An agent cannot widen the grant, cannot request a scope the user did not approve, and cannot use one connector's connection to reach another's provider. A connector that is asked for an ungranted capability fails with a scope error and no provider call is made.
+
+The manifest declares which capability justifies which scope, through a `scopeRequirements` map from scope string to capability name. This means the grant a user approves is always explainable: every scope in the manifest traces to a specific capability, and every capability the connector can invoke traces to a scope the user saw. A manifest with a scope no declared capability justifies, or a scope requirement naming an absent capability, fails validation and cannot be registered.
 
 This is the confused-deputy defence. The relay is trusted to hold the credential, so it must never perform an action the user did not authorize, even when the requester is an authenticated agent inside a legitimate session.
 
