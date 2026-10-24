@@ -4,7 +4,8 @@
   "version": "0.0.0",
   "description": "Remote control platform for AI coding agents.",
   "workspaces": [
-    "apps/*"
+    "apps/*",
+    "packages/*"
   ],
   "scripts": {
     "check": "node scripts/check-docs.mjs",
@@ -19,6 +20,9 @@
     "web:test": "npm run test --workspace @adam/web",
     "web:start": "npm run start --workspace @adam/web --",
     "ci": "npm run check && npm run daemon:test && npm run daemon:build && npm run relay:test && npm run relay:build && npm run web:test && npm run web:build"
+  },
+  "dependencies": {
+    "zod": "^4.2.0"
   },
   "devDependencies": {
     "@types/node": "^20.17.2",
