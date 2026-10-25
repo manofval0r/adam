@@ -24,7 +24,8 @@ This plan is deliberately split across two milestones, because the shared packag
 ## Global Constraints
 
 - Node.js >= 20. TypeScript 5.6, Vitest 2, Zod 4.2. No other runtime dependency is permitted in this package.
-- Zod is pinned to `^4.2.0` and declared once at the workspace root, so exactly one copy is hoisted. Zod 4.2 is the first release with `~standard.jsonSchema` self-conversion, and two copies of Zod in the dependency tree cause the TypeScript error TS2589. The MCP SDK v2 packages require Zod 4.2 and do not support Zod 3.
+- Zod is pinned to `^4.2.0` and declared with that identical range both in the workspace root `package.json` and in `packages/contracts/package.json`, so exactly one copy is hoisted for the whole workspace. A package must declare what it imports; the root declaration is what keeps the resolution shared across the workspace. Zod 4.2 is the first release with `~standard.jsonSchema` self-conversion, and two copies of Zod in the dependency tree cause the TypeScript error TS2589. The MCP SDK v2 packages require Zod 4.2 and do not support Zod 3.
+- The package must not contain two copies of the same validation logic. One function turns a Zod error into the issue list, and every `parse` function in the package calls it.
 - The package name is `@adam/contracts`. It publishes only types and schemas, plus pure functions over them.
 - `packages/*` may import from `packages/*` only. A package may never import from `apps/*`.
 - Every schema that crosses a process boundary uses `.strict()`. Unknown keys are rejected, not stripped.
@@ -250,11 +251,13 @@ Create `packages/contracts/test/permission.test.ts` covering these behaviours:
 ```ts
 it("rejects a decision for an unknown request", () => {
   expect(() => applyDecision([], decisionFor("req_missing"))).toThrow(/no matching permission request/i);
+  expect(() => applyDecision([], decisionFor("req_missing"))).toThrow(ContractValidationError);
 });
 
 it("rejects a second decision for an already decided request", () => {
   const decided = applyDecision([request], decisionFor("req_01"));
   expect(() => applyDecision(decided, decisionFor("req_01"))).toThrow(/already decided/i);
+  expect(() => applyDecision(decided, decisionFor("req_01"))).toThrow(ContractValidationError);
 });
 
 it("records the decision against the matching request", () => {
@@ -265,6 +268,25 @@ it("records the decision against the matching request", () => {
 it("rejects a decision whose requestId is empty", () => {
   expect(() => parsePermissionDecision({ ...validDecision, requestId: "" })).toThrow();
 });
+
+it("does not let a duplicate requestId slip past the already decided check", () => {
+  const duplicate = { ...request, requestId: "req_01" };
+  const decided = applyDecision([request, duplicate], decisionFor("req_01"));
+  expect(decided[0].decision).toBe("approved");
+  expect(() => applyDecision(decided, decisionFor("req_01"))).toThrow(/already decided/i);
+});
+
+it("rejects a request with an empty subject", () => {
+  expect(() => parsePermissionRequest({ ...request, subject: "" })).toThrow(/subject/);
+});
+
+it("rejects a request that claims a decision without naming a decider", () => {
+  expect(() => parsePermissionRequest({ ...request, decision: "approved" })).toThrow();
+});
+
+it("rejects a decision with an empty reason", () => {
+  expect(() => parsePermissionDecision({ ...validDecision, reason: "" })).toThrow();
+});
 ```
 
 - [ ] **Step 2: Run the test to verify it fails**
@@ -274,11 +296,15 @@ Expected: FAIL with a module-not-found error for `../src/permission.js`.
 
 - [ ] **Step 3: Implement the permission schemas in `packages/contracts/src/permission.ts`**
 
-Define `RiskTier` as the three-value union. Define `PermissionRequestSchema` as a strict object where `requestId` and `sessionId` are non-empty strings, `subject` identifies what is being requested, `capability` is a non-empty string, `riskTier` is the `RiskTier` union, `summary` is a non-empty string, `details` is an optional record, and `requestedAt` is an ISO 8601 UTC string.
+Define `RiskTier` as the three-value union. Define `PermissionRequestSchema` as a strict object where `requestId` and `sessionId` are non-empty strings, `subject` is a non-empty string identifying what is being requested, `capability` is a non-empty string, `riskTier` is the `RiskTier` union, `summary` is a non-empty string, `details` is an optional record, and `requestedAt` is an ISO 8601 UTC string.
 
-Define `PermissionDecisionSchema` as a strict object where `requestId` is a non-empty string, `decision` is the two-value union, `decidedBy` is a non-empty string identifying the deciding principal, `decidedAt` is an ISO 8601 UTC string, and `reason` is optional.
+Define `PermissionDecisionSchema` as a strict object where `requestId` is a non-empty string, `decision` is the two-value union, `decidedBy` is a non-empty string identifying the deciding principal, `decidedAt` is an ISO 8601 UTC string, and `reason` is an optional non-empty string.
 
-Implement `applyDecision` so that it finds the request whose `requestId` matches. When no request matches, throw `ContractValidationError` with a message containing `no matching permission request`. When a matching request already carries a `decision`, throw with a message containing `already decided`. Otherwise return a new array with that request replaced by the request's fields plus the decision fields.
+A decided request carries the decision fields inline, so `PermissionRequest` also has optional `decision`, `decidedBy`, `decidedAt`, and `reason` fields. Add a `superRefine` on `PermissionRequestSchema` requiring that `decision`, `decidedBy`, and `decidedAt` are either all present or all absent, so a request cannot claim to be decided without saying by whom and when.
+
+Reuse the timestamp pattern from `packages/contracts/src/events.ts` rather than copying the regex, and reuse the error-formatting logic from the same module. Export one helper that turns a Zod error into the issue list, and call it from `parseEventEnvelope`, `parsePermissionRequest`, and `parsePermissionDecision`. The package must not carry two copies of the same validation logic.
+
+Implement `applyDecision` so that it finds the request whose `requestId` matches, using an index-based lookup rather than an identity comparison, so that two requests sharing a `requestId` cannot slip past the already-decided check. When no request matches, throw `ContractValidationError` with a message containing `no matching permission request`. When a matching request already carries a `decision`, throw with a message containing `already decided`. Otherwise return a new array with that request replaced by the request's fields plus the decision fields, taking the `reason` from the decision rather than from any stale reason on the request.
 
 - [ ] **Step 4: Run the test to verify it passes**
 
