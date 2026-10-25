@@ -462,7 +462,9 @@ describe("shared contracts", () => {
 });
 ```
 
-`DaemonEventType` and `AdamEventType` are types, not values, so a runtime identity assertion cannot compile. Type-level identity is asserted with `expectTypeOf`, which requires Vitest's typecheck to be enabled for the daemon, with a dedicated `tsconfig.test.json` covering the test files and a `pretest` script that runs the typecheck before the runtime suite.
+`DaemonEventType` and `AdamEventType` are types, not values, so a runtime identity assertion cannot compile. Type-level identity is asserted with `expectTypeOf`, which requires Vitest's typecheck to be enabled for the daemon, with a dedicated `tsconfig.test.json` covering the test files. The daemon's `pretest` script builds the contracts package before the suite runs, because the typecheck project resolves `@adam/contracts` through the built declarations rather than through the vitest alias.
+
+The daemon's envelope type must derive from the shared envelope rather than restate its fields, so that a new required field on the shared contract is forced on the daemon at compile time. Use `Omit<EventEnvelope, "type" | "payload">` intersected with the narrowed type and payload, rather than listing the shared fields again. The relay already derives its envelope this way and must keep doing so.
 
 Create `apps/relay/test/contracts.test.ts` asserting that every event the relay emits satisfies the shared schema:
 
