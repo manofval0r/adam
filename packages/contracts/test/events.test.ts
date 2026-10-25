@@ -53,4 +53,30 @@ describe("EventEnvelopeSchema", () => {
   it("accepts a retention class without a ttl", () => {
     expect(parseEventEnvelope(validEnvelope).retention).toEqual({ class: "standard" });
   });
+
+  it("rejects an unknown key inside a nested object", () => {
+    expect(() => parseEventEnvelope({ ...validEnvelope, source: { kind: "desktop_daemon", surprise: true } })).toThrow(
+      /unrecognized/i,
+    );
+  });
+
+  it("rejects an unknown key inside a nested actor object", () => {
+    expect(() => parseEventEnvelope({ ...validEnvelope, actor: { kind: "system", surprise: true } })).toThrow(
+      /unrecognized/i,
+    );
+  });
+
+  it("accepts a zero offset utc timestamp", () => {
+    expect(parseEventEnvelope({ ...validEnvelope, createdAt: "2026-10-24T12:00:00+00:00" }).createdAt).toBe(
+      "2026-10-24T12:00:00+00:00",
+    );
+  });
+
+  it("rejects a timestamp with a non-zero offset", () => {
+    expect(() => parseEventEnvelope({ ...validEnvelope, createdAt: "2026-10-24T12:00:00+01:00" })).toThrow();
+  });
+
+  it("rejects a ttl of zero days", () => {
+    expect(() => parseEventEnvelope({ ...validEnvelope, retention: { class: "standard", ttlDays: 0 } })).toThrow();
+  });
 });

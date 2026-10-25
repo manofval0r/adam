@@ -39,8 +39,15 @@ const EVENT_VISIBILITIES = ["user_visible", "collapsed", "audit_only", "hidden"]
 
 const EVENT_RETENTION_CLASSES = ["ephemeral", "standard", "audit", "artifact_pointer"] as const;
 
-/** Shape-only check for an ISO 8601 timestamp in UTC (`2026-10-24T12:00:00.000Z`). */
-const ISO_8601_UTC_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
+/**
+ * Shape-only check for an ISO 8601 timestamp in UTC.
+ *
+ * Accepts the `Z` designator and a zero numeric offset (`+00:00`), because both are UTC,
+ * and rejects a non-zero offset such as `+01:00`, because that is not a UTC timestamp.
+ * Clock accuracy is never checked: a well-formed timestamp from a device with a wrong
+ * clock still validates.
+ */
+const ISO_8601_UTC_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]00:00)$/;
 
 const AdamEventTypeSchema = z.enum(ADAM_EVENT_TYPES, { error: "unknown event type" });
 export type AdamEventType = z.infer<typeof AdamEventTypeSchema>;
@@ -118,11 +125,7 @@ export function parseEventEnvelope(input: unknown): EventEnvelope {
   }
 
   const issues = result.error.issues.map((issue) => {
-    const segments = issue.path.map((segment) => String(segment));
-    if (issue.code === "unrecognized_keys") {
-      segments.push(...issue.keys);
-    }
-    const path = segments.join(".");
+    const path = issue.path.map((segment) => String(segment)).join(".");
     return path.length > 0 ? `${path}: ${issue.message}` : issue.message;
   });
 
