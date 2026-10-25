@@ -451,16 +451,18 @@ git commit -m "feat(contracts): add connector manifest, connection, and event sc
 Create `apps/daemon/test/contracts.test.ts` asserting that the daemon's event types are identical to the shared package's:
 
 ```ts
-import { describe, expect, it } from "vitest";
+import { describe, expectTypeOf, it } from "vitest";
 import { AdamEventType } from "@adam/contracts";
 import { DaemonEventType } from "../src/types.js";
 
 describe("shared contracts", () => {
   it("uses the shared event type union in the daemon", () => {
-    expect(DaemonEventType).toBe(AdamEventType);
+    expectTypeOf<DaemonEventType>().toEqualTypeOf<AdamEventType>();
   });
 });
 ```
+
+`DaemonEventType` and `AdamEventType` are types, not values, so a runtime identity assertion cannot compile. Type-level identity is asserted with `expectTypeOf`, which requires Vitest's typecheck to be enabled for the daemon, with a dedicated `tsconfig.test.json` covering the test files and a `pretest` script that runs the typecheck before the runtime suite.
 
 Create `apps/relay/test/contracts.test.ts` asserting that every event the relay emits satisfies the shared schema:
 
