@@ -47,7 +47,7 @@ const EVENT_RETENTION_CLASSES = ["ephemeral", "standard", "audit", "artifact_poi
  * Clock accuracy is never checked: a well-formed timestamp from a device with a wrong
  * clock still validates.
  */
-const ISO_8601_UTC_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]00:00)$/;
+export const ISO_8601_UTC_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]00:00)$/;
 
 const AdamEventTypeSchema = z.enum(ADAM_EVENT_TYPES, { error: "unknown event type" });
 export type AdamEventType = z.infer<typeof AdamEventTypeSchema>;
@@ -102,12 +102,18 @@ export const EventEnvelopeSchema = z.strictObject({
 });
 export type EventEnvelope = z.infer<typeof EventEnvelopeSchema>;
 
-/** Error raised when a payload does not satisfy a shared contract schema. */
+/**
+ * Error raised when a payload does not satisfy a shared contract schema.
+ *
+ * `subject` names the contract the payload was checked against. It only affects
+ * the message, so a module that validates a different contract can say so instead
+ * of borrowing the event envelope wording.
+ */
 export class ContractValidationError extends Error {
   readonly issues: string[];
 
-  constructor(issues: string[]) {
-    super(`Invalid event envelope: ${issues.join(", ")}`);
+  constructor(issues: string[], subject = "event envelope") {
+    super(`Invalid ${subject}: ${issues.join(", ")}`);
     this.name = "ContractValidationError";
     this.issues = issues;
   }
