@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ContractValidationError, ISO_8601_UTC_PATTERN } from "./events.js";
+import { ContractValidationError, ISO_8601_UTC_PATTERN, formatContractIssues } from "./events.js";
 
 const RISK_TIERS = ["green", "yellow", "red"] as const;
 
@@ -17,22 +17,32 @@ export type PermissionDecisionValue = z.infer<typeof PermissionDecisionValueSche
  * A request for the user's consent to one action.
  *
  * A request that has already been decided carries the decision inline, so a
- * decided request still validates against this schema.
+ * decided request still validates against this schema. The decision fields are
+ * either all present or all absent: a request cannot claim to be decided without
+ * saying by whom and when.
  */
-export const PermissionRequestSchema = z.strictObject({
-  requestId: z.string().min(1),
-  sessionId: z.string().min(1),
-  subject: z.string().min(1),
-  capability: z.string().min(1),
-  riskTier: RiskTierSchema,
-  summary: z.string().min(1),
-  details: z.record(z.string(), z.unknown()).optional(),
-  requestedAt: z.string().regex(ISO_8601_UTC_PATTERN),
-  decision: PermissionDecisionValueSchema.optional(),
-  decidedBy: z.string().min(1).optional(),
-  decidedAt: z.string().regex(ISO_8601_UTC_PATTERN).optional(),
-  reason: z.string().optional(),
-});
+export const PermissionRequestSchema = z
+  .strictObject({
+    requestId: z.string().min(1),
+    sessionId: z.string().min(1),
+    subject: z.string().min(1),
+    capability: z.string().min(1),
+    riskTier: RiskTierSchema,
+    summary: z.string().min(1),
+    details: z.record(z.string(), z.unknown()).optional(),
+    requestedAt: z.string().regex(ISO_8601_UTC_PATTERN),
+    decision: PermissionDecisionValueSchema.optional(),
+    decidedBy: z.string().min(1).optional(),
+    decidedAt: z.string().regex(ISO_8601_UTC_PATTERN).optional(),
+    reason: z.string().min(1).optional(),
+  })
+  .superRefine((request, ctx) => {
+    const decisionFields = [request.decision, request.decidedBy, request.decidedAt];
+    const present = decisionFields.filter((field) => field !== undefined).length;
+    if (present !== 0 && present !== decisionFields.length) {
+      ctx.addIssue("decision, decidedBy and decidedAt must be present together");
+    }
+  });
 export type PermissionRequest = z.infer<typeof PermissionRequestSchema>;
 
 /** A decision on one permission request, recorded by the deciding principal. */
@@ -41,7 +51,7 @@ export const PermissionDecisionSchema = z.strictObject({
   decision: PermissionDecisionValueSchema,
   decidedBy: z.string().min(1),
   decidedAt: z.string().regex(ISO_8601_UTC_PATTERN),
-  reason: z.string().optional(),
+  reason: z.string().min(1).optional(),
 });
 export type PermissionDecision = z.infer<typeof PermissionDecisionSchema>;
 
@@ -56,12 +66,7 @@ export function parsePermissionRequest(input: unknown): PermissionRequest {
     return result.data;
   }
 
-  const issues = result.error.issues.map((issue) => {
-    const path = issue.path.map((segment) => String(segment)).join(".");
-    return path.length > 0 ? `${path}: ${issue.message}` : issue.message;
-  });
-
-  throw new ContractValidationError(issues, "permission request");
+  throw new ContractValidationError(formatContractIssues(result.error), "permission request");
 }
 
 /**
@@ -75,19 +80,16 @@ export function parsePermissionDecision(input: unknown): PermissionDecision {
     return result.data;
   }
 
-  const issues = result.error.issues.map((issue) => {
-    const path = issue.path.map((segment) => String(segment)).join(".");
-    return path.length > 0 ? `${path}: ${issue.message}` : issue.message;
-  });
-
-  throw new ContractValidationError(issues, "permission decision");
+  throw new ContractValidationError(formatContractIssues(result.error), "permission decision");
 }
 
 /**
  * Applies a decision to the request it belongs to.
  *
- * The matching request is replaced by one that carries the decision inline. The
- * requests given are never mutated.
+ * The matching request is located by index and replaced in a copy of the array, so
+ * two requests sharing a `requestId` cannot slip past the already-decided check and
+ * the same instance listed twice is replaced in one place only. The requests given
+ * are never mutated.
  *
  * Throws {@link ContractValidationError} when no request matches the decision's
  * `requestId`, or when the matching request already carries a decision.
@@ -96,7 +98,8 @@ export function applyDecision(
   requests: PermissionRequest[],
   decision: PermissionDecision,
 ): PermissionRequest[] {
-  const target = requests.find((request) => request.requestId === decision.requestId);
+  const index = requests.findIndex((request) => request.requestId === decision.requestId);
+  const target = index < 0 ? undefined : requests[index];
 
   if (target === undefined) {
     throw new ContractValidationError(
@@ -121,5 +124,7 @@ export function applyDecision(
     ...(decision.reason === undefined ? {} : { reason: decision.reason }),
   };
 
-  return requests.map((request) => (request === target ? decided : request));
+  const decidedRequests = [...requests];
+  decidedRequests[index] = decided;
+  return decidedRequests;
 }

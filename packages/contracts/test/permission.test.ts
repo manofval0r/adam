@@ -64,6 +64,10 @@ describe("parsePermissionRequest", () => {
     expect(() => parsePermissionRequest({ ...request, sessionId: "" })).toThrow(/sessionId/);
   });
 
+  it("rejects a request with an empty subject", () => {
+    expect(() => parsePermissionRequest({ ...request, subject: "" })).toThrow(/subject/);
+  });
+
   it("rejects an empty capability", () => {
     expect(() => parsePermissionRequest({ ...request, capability: "" })).toThrow(/capability/);
   });
@@ -94,6 +98,14 @@ describe("parsePermissionRequest", () => {
     expect(() => parsePermissionRequest({ ...request, requestedAt: "2026-10-24T12:00:00+01:00" })).toThrow(
       /requestedAt/,
     );
+  });
+
+  it("rejects a request that claims a decision without naming a decider", () => {
+    expect(() => parsePermissionRequest({ ...request, decision: "approved" })).toThrow();
+  });
+
+  it("rejects a request that names a decider without a decision", () => {
+    expect(() => parsePermissionRequest({ ...request, decidedBy: "user:david" })).toThrow();
   });
 
   it("reports every failing field in the error issues", () => {
@@ -139,6 +151,10 @@ describe("parsePermissionDecision", () => {
     expect(() => parsePermissionDecision({ ...validDecision, decision: "maybe" })).toThrow(/decision/);
   });
 
+  it("rejects a decision with an empty reason", () => {
+    expect(() => parsePermissionDecision({ ...validDecision, reason: "" })).toThrow(/reason/);
+  });
+
   it("rejects unknown keys", () => {
     expect(() => parsePermissionDecision({ ...validDecision, extra: true })).toThrow(/unrecognized/i);
   });
@@ -153,11 +169,26 @@ describe("parsePermissionDecision", () => {
 describe("applyDecision", () => {
   it("rejects a decision for an unknown request", () => {
     expect(() => applyDecision([], decisionFor("req_missing"))).toThrow(/no matching permission request/i);
+    expect(() => applyDecision([], decisionFor("req_missing"))).toThrow(ContractValidationError);
   });
 
   it("rejects a second decision for an already decided request", () => {
     const decided = applyDecision([request], decisionFor("req_01"));
     expect(() => applyDecision(decided, decisionFor("req_01"))).toThrow(/already decided/i);
+    expect(() => applyDecision(decided, decisionFor("req_01"))).toThrow(ContractValidationError);
+  });
+
+  it("does not let a duplicate requestId slip past the already decided check", () => {
+    const duplicate = { ...request, requestId: "req_01" };
+    const decided = applyDecision([request, duplicate], decisionFor("req_01"));
+    expect(decided[0].decision).toBe("approved");
+    expect(() => applyDecision(decided, decisionFor("req_01"))).toThrow(/already decided/i);
+  });
+
+  it("replaces the matching request in one place only when the same instance is listed twice", () => {
+    const decided = applyDecision([request, request], decisionFor("req_01"));
+    expect(decided[0]).toMatchObject({ requestId: "req_01", decision: "approved" });
+    expect(decided[1]).not.toHaveProperty("decision");
   });
 
   it("records the decision against the matching request", () => {

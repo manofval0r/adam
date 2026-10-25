@@ -120,6 +120,19 @@ export class ContractValidationError extends Error {
 }
 
 /**
+ * Turns a Zod error into the issue list carried by {@link ContractValidationError}.
+ *
+ * One string per issue. An issue that failed on a field is prefixed with the path
+ * of that field; an issue with no path is reported on its own.
+ */
+export function formatContractIssues(error: z.ZodError): string[] {
+  return error.issues.map((issue) => {
+    const path = issue.path.map((segment) => String(segment)).join(".");
+    return path.length > 0 ? `${path}: ${issue.message}` : issue.message;
+  });
+}
+
+/**
  * Validates an unknown input against the shared event envelope.
  *
  * Throws {@link ContractValidationError} when the input does not satisfy the schema.
@@ -130,10 +143,5 @@ export function parseEventEnvelope(input: unknown): EventEnvelope {
     return result.data;
   }
 
-  const issues = result.error.issues.map((issue) => {
-    const path = issue.path.map((segment) => String(segment)).join(".");
-    return path.length > 0 ? `${path}: ${issue.message}` : issue.message;
-  });
-
-  throw new ContractValidationError(issues);
+  throw new ContractValidationError(formatContractIssues(result.error));
 }
