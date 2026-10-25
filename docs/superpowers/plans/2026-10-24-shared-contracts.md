@@ -233,7 +233,7 @@ git commit -m "feat(contracts): add shared event envelope schema package"
 - Modify: `packages/contracts/src/index.ts`
 
 **Interfaces:**
-- Consumes: `AdamEventType` and `EventEnvelopeSchema` from `packages/contracts/src/events.ts`.
+- Consumes: `ContractValidationError` from `packages/contracts/src/events.ts`.
 - Produces:
   - `RiskTier` — union of `"green" | "yellow" | "red"`.
   - `PermissionRequestSchema` — Zod object for `{ requestId, sessionId, subject, capability, riskTier, summary, details, requestedAt }`.
