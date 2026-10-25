@@ -1,4 +1,6 @@
 import { randomBytes, randomUUID } from "node:crypto";
+import { SCHEMA_VERSION } from "@adam/contracts";
+import type { EventActor, EventSource } from "@adam/contracts";
 import { hashToken } from "./auth.js";
 import { RelayStoreError } from "./errors.js";
 import type {
@@ -39,6 +41,25 @@ function plusSeconds(date: Date, seconds: number): Date {
 function plusDays(date: Date, days: number): Date {
   return new Date(date.getTime() + days * 24 * 60 * 60 * 1_000);
 }
+
+/**
+ * The relay's own identity in the shared event envelope.
+ *
+ * The relay is one deployment-level actor, so every event it emits carries
+ * this same source and actor instead of a freshly minted identity per event.
+ */
+const RELAY_EVENT_SOURCE: EventSource = {
+  kind: "cloud_relay",
+  id: "adam-relay",
+  name: "Adam Relay",
+  version: "0.1.0"
+};
+
+const RELAY_EVENT_ACTOR: EventActor = {
+  kind: "system",
+  id: "adam-relay",
+  displayName: "Adam Relay"
+};
 
 export class RelayStore {
   private readonly users = new Map<string, RelayUser>();
@@ -629,6 +650,13 @@ export class RelayStore {
       type,
       sequence,
       createdAt: toIso(this.now()),
+      schemaVersion: SCHEMA_VERSION,
+      source: RELAY_EVENT_SOURCE,
+      actor: RELAY_EVENT_ACTOR,
+      visibility: "user_visible",
+      retention: {
+        class: "standard"
+      },
       payload
     };
     if (correlationId) {

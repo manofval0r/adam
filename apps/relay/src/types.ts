@@ -1,3 +1,5 @@
+import type { AdamEventType, EventEnvelope } from "@adam/contracts";
+
 export type DeviceStatus = "paired" | "connected" | "disconnected" | "revoked";
 
 export type SessionStatus = "active" | "idle" | "failed" | "disconnected";
@@ -8,7 +10,17 @@ export type PromptDeliveryState =
   | "adapter_sent"
   | "acknowledged"
   | "failed";
-export type RelayEventType = "message" | "activity" | "prompt_delivery" | "error";
+
+/**
+ * Event types the relay emits.
+ *
+ * The relay speaks a subset of the shared event vocabulary, so the subset is
+ * derived from the shared union instead of being spelled out again.
+ */
+export type RelayEventType = Extract<
+  AdamEventType,
+  "message" | "activity" | "prompt_delivery" | "error"
+>;
 
 export interface RelayUser {
   id: string;
@@ -110,16 +122,21 @@ export interface RelayErrorEventPayload {
   promptId?: string;
 }
 
-export interface RelayEvent {
-  id: string;
+/**
+ * A relay event: the shared event envelope plus the user it belongs to.
+ *
+ * The payload stays relay-local until the shared package grows payload
+ * schemas for it; the envelope around it is the shared one.
+ */
+export type RelayEvent = Omit<EventEnvelope, "type" | "payload"> & {
   userId: string;
-  sessionId: string;
   type: RelayEventType;
-  sequence: number;
-  createdAt: string;
-  correlationId?: string;
-  payload: RelayMessageEventPayload | RelayActivityEventPayload | RelayPromptDeliveryPayload | RelayErrorEventPayload;
-}
+  payload:
+    | RelayMessageEventPayload
+    | RelayActivityEventPayload
+    | RelayPromptDeliveryPayload
+    | RelayErrorEventPayload;
+};
 
 export interface SessionHeartbeatInput {
   id: string;
