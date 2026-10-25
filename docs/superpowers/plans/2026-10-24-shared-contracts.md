@@ -79,6 +79,12 @@ This step comes before the test, because the test command is `npm run test --wor
 
 Create `packages/contracts/package.json` with name `@adam/contracts`, `private: true`, `type: "module"`, a `main` pointing at `dist/index.js`, a `types` field pointing at `dist/index.d.ts`, an `exports` map whose `types` condition points at `dist/index.d.ts` and whose `import` condition points at `dist/index.js`, and scripts `build` running `tsc -p tsconfig.json` and `test` running `vitest run`. Add `"packages/*"` to the `workspaces` array in the root `package.json`, and add `zod` as a dependency of the root `package.json` so exactly one copy is hoisted for the whole workspace.
 
+Add `contracts:test` and `contracts:build` scripts to the root `package.json`, matching the existing `daemon:test`, `relay:test`, and `web:test` naming, and include both in the root `ci` chain. The foundational package must be exercised by CI from the moment it exists, not from a later task.
+
+Declare `zod` with the range `^4.2.0` in both the root `package.json` and `packages/contracts/package.json`. The ranges must be identical, so that npm hoists exactly one copy of Zod for the whole workspace. Two copies of Zod in the dependency tree cause the TypeScript error TS2589.
+
+Run `npm install` after editing the root `package.json`, so that the workspace symlink for `@adam/contracts` exists.
+
 Create `packages/contracts/tsconfig.json` extending the root base with `composite` enabled, `declaration` and `declarationMap` enabled, an `outDir` of `dist`, a `rootDir` of `src`, and `include` of `src`. Create `packages/contracts/vitest.config.ts` mirroring the existing app configs: `environment: "node"`, `include: ["test/**/*.test.ts"]`.
 
 Do not add a path mapping for `@adam/contracts` to `tsconfig.base.json`. A path mapping would point the app compilers at the package source, which sits outside each app's `rootDir` of `src` and breaks the app build with a rootDir error. Resolution goes through the npm workspace symlink and the built `dist` output instead.
@@ -143,6 +149,26 @@ describe("EventEnvelopeSchema", () => {
   it("accepts a retention class without a ttl", () => {
     expect(parseEventEnvelope(validEnvelope).retention).toEqual({ class: "standard" });
   });
+
+  it("rejects an unknown key inside a nested object", () => {
+    expect(() => parseEventEnvelope({ ...validEnvelope, source: { kind: "desktop_daemon", surprise: true } })).toThrow(
+      /unrecognized/i,
+    );
+  });
+
+  it("accepts a zero offset utc timestamp", () => {
+    expect(parseEventEnvelope({ ...validEnvelope, createdAt: "2026-10-24T12:00:00+00:00" }).createdAt).toBe(
+      "2026-10-24T12:00:00+00:00",
+    );
+  });
+
+  it("rejects a timestamp with a non-zero offset", () => {
+    expect(() => parseEventEnvelope({ ...validEnvelope, createdAt: "2026-10-24T12:00:00+01:00" })).toThrow();
+  });
+
+  it("rejects a ttl of zero days", () => {
+    expect(() => parseEventEnvelope({ ...validEnvelope, retention: { class: "standard", ttlDays: 0 } })).toThrow();
+  });
 });
 ```
 
@@ -170,7 +196,7 @@ Export `EventEnvelopeSchema` as a strict Zod object with these fields:
 - `type`: the `AdamEventType` union
 - `sessionId`: string, minimum 1 character
 - `sequence`: integer, minimum 0
-- `createdAt`: string matching an ISO 8601 UTC pattern, validated for shape only
+- `createdAt`: string matching an ISO 8601 UTC pattern, validated for shape only. The pattern must accept both the `Z` designator and a zero numeric offset such as `+00:00`, because both are UTC. It must reject a non-zero offset such as `+01:00`, because a non-zero offset is not a UTC timestamp. The rule is shape, never clock accuracy: a well-formed timestamp from a device with a wrong clock still validates.
 - `source`: `EventSourceSchema`
 - `actor`: `EventActorSchema`
 - `correlationId`: optional string, minimum 1 character
@@ -188,7 +214,7 @@ Create `packages/contracts/src/index.ts` re-exporting everything from `./events.
 - [ ] **Step 5: Run the test to verify it passes**
 
 Run: `npm run test --workspace @adam/contracts`
-Expected: PASS, 8 tests.
+Expected: PASS, 13 tests.
 
 - [ ] **Step 6: Commit**
 
