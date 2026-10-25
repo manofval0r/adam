@@ -430,6 +430,7 @@ git commit -m "feat(contracts): add connector manifest, connection, and event sc
 - Modify: `apps/daemon/src/types.ts`
 - Modify: `apps/relay/src/types.ts`
 - Modify: `apps/daemon/src/event-log.ts`
+- Modify: `apps/relay/src/store.ts`
 - Modify: `apps/relay/src/server.ts`
 - Modify: `apps/daemon/package.json`
 - Modify: `apps/relay/package.json`
@@ -505,17 +506,23 @@ Expected: FAIL because the daemon does not yet depend on `@adam/contracts`.
 
 - [ ] **Step 3: Re-export shared types from the app type modules**
 
-In `apps/daemon/src/types.ts`, replace the hand-written event type union with a re-export from `@adam/contracts`, keeping the existing export names so call sites do not change. Keep any daemon-local types that are genuinely local to the daemon.
+In `apps/daemon/src/types.ts`, replace the hand-written event type union with a re-export of the shared `AdamEventType`, and re-export the shared `EventVisibility`, `EventRetentionClass`, `EventRetention`, `EventSource`, and `EventActor`. Keep the existing export names so call sites do not change. Keep `SessionStartedPayload` and `ActivityPayload` as daemon-local types: they describe what the daemon emits, and they stay until a later milestone gives them shared payload schemas.
 
-In `apps/relay/src/types.ts`, do the same for the event and permission types.
+The daemon's `DaemonEvent` is a discriminated union pairing an event type with its payload. `DaemonEventEnvelope` must therefore take the event type as a type parameter, so that widening `DaemonEventType` to the shared sixteen-value union does not let any payload pair with any type. `DaemonEvent` stays the two-member union over `session_started` and `activity`.
 
-In `apps/daemon/src/event-log.ts` and `apps/relay/src/server.ts`, replace local construction and validation of event envelopes with `parseEventEnvelope` from `@adam/contracts`. The relay has no event ingest endpoint today, so the migration here is about the events the relay itself constructs, not about validating an inbound body.
+In `apps/daemon/src/event-log.ts`, use the shared `SCHEMA_VERSION` constant instead of the literal string, and adjust the envelope type parameter.
+
+In `apps/relay/src/types.ts`, express `RelayEventType` as a subset of the shared `AdamEventType` rather than as an unrelated four-value union. Make `RelayEvent` the shared envelope extended with `userId`, and keep the four relay-local payload interfaces.
+
+In `apps/relay/src/store.ts`, the `appendEvent` helper must fill in the envelope fields the shared contract requires: `schemaVersion` from the shared constant, a `source` with kind `cloud_relay`, an `actor` with kind `system`, a `visibility`, and a `retention`. The relay's own source and actor identity are deployment-level facts, so use a single shared identity for them rather than inventing one per event.
+
+The `GET /v1/events` response shape must not change. The web client reads only `sequence`, `type`, `createdAt`, and `payload`, all of which exist in both the old and the new event shape, so `apps/web/src/templates.ts` needs no change and must not be edited.
 
 Add `"@adam/contracts": "*"` to the dependencies of `apps/daemon/package.json`, `apps/relay/package.json`, and `apps/web/package.json`.
 
 Make the package resolve in both test and build, without a path mapping:
 
-- In each app's `vitest.config.ts`, add a resolve alias mapping `@adam/contracts` to the package source, so a test run never depends on a built or up-to-date `dist`. Use the same alias value in all three apps.
+- In each app's `vitest.config.ts`, add a resolve alias mapping `@adam/contracts` to the package source, so a test run never depends on a built or up-to-date `dist`. Use the same alias value in all three apps. These config files are ESM, so resolve the path with `fileURLToPath(new URL("../../packages/contracts/src/index.ts", import.meta.url))` rather than `__dirname`.
 - In each app's `package.json`, add a `prebuild` script that runs `npm run build --workspace @adam/contracts`, so a standalone app build always has the package's declarations available. npm runs `prebuild` automatically before `build`.
 - In the root `package.json`, put the contracts build before the app builds in the `ci` script.
 
