@@ -44,6 +44,12 @@ This changelog records meaningful planning and implementation changes between co
 - Added research findings on Oracle Cloud Always Free, including the reduction of the Ampere A1 entitlement to 2 OCPU and 12 GB in August 2026, the idle reclamation thresholds, the immutable home region, the over-provisioning deletion rule, and the absence of any free managed Postgres on Oracle.
 - Added research findings on Google OAuth scope tiers, showing that reading a mailbox is a restricted scope requiring an annual third-party security assessment while sending is only a sensitive scope, and that a client left in Testing publishing status issues refresh tokens that expire after seven days.
 - Added an open-source licence audit of the current and planned dependency set, flagging Redis 8 as tri-licensed under RSALv2, SSPLv1, and AGPLv3 with Valkey as the permissively licensed substitute.
+- Added the `@adam/contracts` workspace package with strict shared event-envelope and permission schemas, inferred TypeScript types, contract validation errors, and package-level tests and builds in CI.
+
+### Changed
+
+- Migrated daemon event logging and relay event construction onto `@adam/contracts`, eliminating their parallel hand-written envelope definitions while preserving the existing app type-module import surfaces.
+- Changed `/v1/events` so each event is the strict shared envelope: the response still carries `userId` at the top level, while the redundant per-event `userId` is no longer sent and shared envelope metadata (`schemaVersion`, `source`, `actor`, `visibility`, and `retention`) is now included.
 
 ### Decisions
 
