@@ -1,11 +1,14 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "noEmit": true
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@adam/contracts": ["../../packages/contracts/src/index.ts"]
+    }
   },
   "include": [
     "src/**/*.ts",
-    "test/contracts.test.ts",
-    "test/event-log.test.ts"
+    "test/**/*.ts"
   ]
 }

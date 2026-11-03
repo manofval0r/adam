@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { EventLogWriter, resolveEventLogPath } from "./event-log.js";
 import { gatherDaemonHealth } from "./health.js";
+import { DAEMON_VERSION } from "./version.js";
 
 export interface DaemonRunResult {
   sessionId: string;
@@ -19,7 +20,7 @@ export function runDaemonOnce(cwd: string = process.cwd()): DaemonRunResult {
       kind: "desktop_daemon",
       id: "adam-daemon",
       name: "Adam Daemon",
-      version: "0.1.0"
+      version: DAEMON_VERSION
     },
     {
       kind: "system",

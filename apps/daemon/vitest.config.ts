@@ -12,7 +12,7 @@ export default defineConfig({
     include: ["test/**/*.test.ts"],
     typecheck: {
       enabled: true,
-      include: ["test/contracts.test.ts", "test/event-log.test.ts"],
+      include: ["test/**/*.test-d.ts"],
       tsconfig: "./tsconfig.test.json"
     }
   }

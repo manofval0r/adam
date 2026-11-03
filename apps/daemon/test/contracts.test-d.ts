@@ -9,10 +9,9 @@ import type {
 
 describe("shared contracts", () => {
   it("uses the shared event type union in the daemon", () => {
-    // `AdamEventType` is a type, not a runtime value, so the identity of the
-    // two unions is asserted at the type level. Vitest typechecking enforces
-    // this assertion: the daemon union has to be the shared union, not a
-    // hand-written copy of it.
+    // Vitest typechecking enforces structural equality: the daemon union must
+    // have exactly the same members as the shared union, so widening or
+    // narrowing either one fails here.
     expectTypeOf<DaemonEventType>().toEqualTypeOf<AdamEventType>();
   });
 

@@ -1,4 +1,5 @@
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -55,7 +56,9 @@ describe("relay prompt worker", () => {
       })
     });
 
+    const packageMetadata = createRequire(import.meta.url)("../package.json") as { version: string };
     expect(heartbeats).toHaveLength(1);
+    expect(heartbeats[0]!.daemonVersion).toBe(packageMetadata.version);
     expect(result.status).toBe("processed");
     expect(result.promptsFetched).toBe(1);
     expect(result.promptsAcknowledged).toBe(1);
@@ -91,7 +94,7 @@ describe("relay prompt worker", () => {
       updatePromptStatus: async (_baseUrl, _token, _timeoutMs, _promptId, status) => {
         updates.push({
           state: status.state,
-          errorCode: status.errorCode
+          ...(status.errorCode === undefined ? {} : { errorCode: status.errorCode })
         });
       },
       executePrompt: () => {
@@ -136,7 +139,7 @@ describe("relay prompt worker", () => {
       updatePromptStatus: async (_baseUrl, _token, _timeoutMs, _promptId, status) => {
         updates.push({
           state: status.state,
-          errorCode: status.errorCode
+          ...(status.errorCode === undefined ? {} : { errorCode: status.errorCode })
         });
       },
       executePrompt: () => {

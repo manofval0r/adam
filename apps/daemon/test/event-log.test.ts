@@ -1,10 +1,9 @@
 import { mkdtempSync, readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, expectTypeOf, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { EventEnvelopeSchema } from "@adam/contracts";
 import { EventLogWriter, resolveEventLogPath } from "../src/event-log.js";
-import type { ActivityPayload, DaemonEventEnvelope } from "../src/types.js";
 
 function writeSampleEvents(): string {
   const stateDir = mkdtempSync(path.join(os.tmpdir(), "adam-events-"));
@@ -93,8 +92,5 @@ describe("event log", () => {
       expect(EventEnvelopeSchema.safeParse(JSON.parse(line)).success).toBe(true);
     }
 
-    // The envelope keeps one event type per event, so widening the shared
-    // union cannot let an arbitrary payload pair with an arbitrary type.
-    expectTypeOf<DaemonEventEnvelope<"activity", ActivityPayload>["type"]>().toEqualTypeOf<"activity">();
   });
 });

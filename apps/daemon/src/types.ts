@@ -1,11 +1,11 @@
 import type {
   AdamEventType,
   EventActor,
+  EventEnvelope,
   EventRetention,
   EventRetentionClass,
   EventSource,
-  EventVisibility,
-  SCHEMA_VERSION
+  EventVisibility
 } from "@adam/contracts";
 
 export type {
@@ -57,22 +57,18 @@ export interface DaemonHeartbeatInput {
 /**
  * The shared event envelope, narrowed to one event type.
  *
- * The event type is a type parameter so that widening `DaemonEventType` to
- * the shared union cannot pair an arbitrary payload with an arbitrary type.
+ * The envelope fields are derived from the shared `EventEnvelope`, so a field
+ * added to the shared contract cannot be missing here. The event type is a type
+ * parameter so that widening `DaemonEventType` to the shared union cannot pair
+ * an arbitrary payload with an arbitrary type.
  */
-export interface DaemonEventEnvelope<TType extends DaemonEventType, TPayload> {
-  id: string;
-  schemaVersion: typeof SCHEMA_VERSION;
+export type DaemonEventEnvelope<TType extends DaemonEventType, TPayload> = Omit<
+  EventEnvelope,
+  "type" | "payload"
+> & {
   type: TType;
-  sessionId: string;
-  sequence: number;
-  createdAt: string;
-  source: EventSource;
-  actor: EventActor;
   payload: TPayload;
-  visibility: EventVisibility;
-  retention: EventRetention;
-}
+};
 
 export type DaemonEvent =
   | DaemonEventEnvelope<"session_started", SessionStartedPayload>
