@@ -47,7 +47,7 @@ const EVENT_RETENTION_CLASSES = ["ephemeral", "standard", "audit", "artifact_poi
  * Clock accuracy is never checked: a well-formed timestamp from a device with a wrong
  * clock still validates.
  */
-export const ISO_8601_UTC_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]00:00)$/;
+export const ISO_8601_UTC_PATTERN = /^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z|\+00:00)$/;
 
 const AdamEventTypeSchema = z.enum(ADAM_EVENT_TYPES, { error: "unknown event type" });
 export type AdamEventType = z.infer<typeof AdamEventTypeSchema>;
@@ -112,7 +112,7 @@ export type EventEnvelope = z.infer<typeof EventEnvelopeSchema>;
 export class ContractValidationError extends Error {
   readonly issues: string[];
 
-  constructor(issues: string[], subject = "event envelope") {
+  constructor(issues: string[], subject: string) {
     super(`Invalid ${subject}: ${issues.join(", ")}`);
     this.name = "ContractValidationError";
     this.issues = issues;
@@ -143,5 +143,5 @@ export function parseEventEnvelope(input: unknown): EventEnvelope {
     return result.data;
   }
 
-  throw new ContractValidationError(formatContractIssues(result.error));
+  throw new ContractValidationError(formatContractIssues(result.error), "event envelope");
 }

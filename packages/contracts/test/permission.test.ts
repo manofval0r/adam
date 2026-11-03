@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { ContractValidationError } from "../src/events.js";
 import {
+  ContractValidationError,
   PermissionDecisionSchema,
   PermissionRequestSchema,
   applyDecision,
   parsePermissionDecision,
   parsePermissionRequest,
-} from "../src/permission.js";
+} from "../src/index.js";
 import type { PermissionDecision, PermissionRequest } from "../src/permission.js";
 
 const request: PermissionRequest = {
@@ -88,16 +88,11 @@ describe("parsePermissionRequest", () => {
     expect(() => parsePermissionRequest({ ...request, details: "src/app.ts" })).toThrow(/details/);
   });
 
-  it("accepts a zero offset utc timestamp", () => {
-    expect(
-      parsePermissionRequest({ ...request, requestedAt: "2026-10-24T12:00:00+00:00" }).requestedAt,
-    ).toBe("2026-10-24T12:00:00+00:00");
-  });
-
-  it("rejects a timestamp with a non-zero offset", () => {
-    expect(() => parsePermissionRequest({ ...request, requestedAt: "2026-10-24T12:00:00+01:00" })).toThrow(
-      /requestedAt/,
-    );
+  it.each(["approved", "denied"] as const)("accepts a fully %s request without a reason", (decision) => {
+    const { reason: _reason, ...withoutReason } = validDecision;
+    const parsed = parsePermissionRequest({ ...request, ...withoutReason, decision });
+    expect(parsed).toMatchObject({ ...withoutReason, decision });
+    expect(parsed).not.toHaveProperty("reason");
   });
 
   it("rejects a request that claims a decision without naming a decider", () => {
@@ -106,6 +101,10 @@ describe("parsePermissionRequest", () => {
 
   it("rejects a request that names a decider without a decision", () => {
     expect(() => parsePermissionRequest({ ...request, decidedBy: "user:david" })).toThrow();
+  });
+
+  it("rejects a reason without a decision", () => {
+    expect(() => parsePermissionRequest({ ...request, reason: "already approved" })).toThrow(/reason/);
   });
 
   it("reports every failing field in the error issues", () => {
@@ -120,6 +119,7 @@ describe("parsePermissionRequest", () => {
     }
 
     expect(issues).toHaveLength(2);
+    expect(message).toMatch(/^Invalid permission request:/);
     expect(message).toMatch(/requestId/);
     expect(message).toMatch(/summary/);
   });
@@ -159,10 +159,43 @@ describe("parsePermissionDecision", () => {
     expect(() => parsePermissionDecision({ ...validDecision, extra: true })).toThrow(/unrecognized/i);
   });
 
-  it("rejects a decidedAt with a non-zero offset", () => {
-    expect(() =>
-      parsePermissionDecision({ ...validDecision, decidedAt: "2026-10-24T12:05:00+01:00" }),
-    ).toThrow(/decidedAt/);
+  it("identifies permission decision validation errors from the public parser", () => {
+    const parseInvalid = () => parsePermissionDecision({ ...validDecision, requestId: "" });
+    expect(parseInvalid).toThrow(ContractValidationError);
+    expect(parseInvalid).toThrow(/^Invalid permission decision: requestId:/);
+  });
+});
+
+describe.each([
+  ["permission request requestedAt", "requestedAt", (timestamp: string) =>
+    parsePermissionRequest({ ...request, requestedAt: timestamp }).requestedAt],
+  ["permission request decidedAt", "decidedAt", (timestamp: string) =>
+    parsePermissionRequest({ ...request, ...validDecision, decidedAt: timestamp }).decidedAt],
+  ["permission decision decidedAt", "decidedAt", (timestamp: string) =>
+    parsePermissionDecision({ ...validDecision, decidedAt: timestamp }).decidedAt],
+] as const)("%s UTC timestamps", (_case, field, parseTimestamp) => {
+  it.each([
+    "2026-10-24T12:00:00+01:00",
+    "2026-10-24T12:00:00-00:00",
+    "2026-00-24T12:00:00Z",
+    "2026-13-24T12:00:00Z",
+    "2026-10-00T12:00:00Z",
+    "2026-10-32T12:00:00Z",
+    "2026-10-24T24:00:00Z",
+    "2026-10-24T12:60:00Z",
+    "2026-10-24T12:00:60Z",
+  ])("rejects an invalid UTC timestamp: %s", (timestamp) => {
+    expect(() => parseTimestamp(timestamp)).toThrow(field);
+  });
+
+  it.each([
+    ["the Z designator", "2026-10-24T12:00:00Z"],
+    ["the +00:00 UTC offset", "2026-10-24T12:00:00+00:00"],
+    ["a clock far in the past", "1900-01-01T00:00:00Z"],
+    ["a clock far in the future", "2999-12-31T23:59:59+00:00"],
+    ["a plausible day range without calendar validation", "2026-02-31T12:00:00Z"],
+  ])("accepts %s", (_case, timestamp) => {
+    expect(parseTimestamp(timestamp)).toBe(timestamp);
   });
 });
 
@@ -181,7 +214,7 @@ describe("applyDecision", () => {
   it("does not let a duplicate requestId slip past the already decided check", () => {
     const duplicate = { ...request, requestId: "req_01" };
     const decided = applyDecision([request, duplicate], decisionFor("req_01"));
-    expect(decided[0].decision).toBe("approved");
+    expect(decided[0]).toMatchObject({ decision: "approved" });
     expect(() => applyDecision(decided, decisionFor("req_01"))).toThrow(/already decided/i);
   });
 

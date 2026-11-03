@@ -42,6 +42,13 @@ export const PermissionRequestSchema = z
     if (present !== 0 && present !== decisionFields.length) {
       ctx.addIssue("decision, decidedBy and decidedAt must be present together");
     }
+    if (request.reason !== undefined && request.decision === undefined) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["reason"],
+        message: "reason requires a decision",
+      });
+    }
   });
 export type PermissionRequest = z.infer<typeof PermissionRequestSchema>;
 
