@@ -8,6 +8,7 @@
     "prebuild": "npm run build --workspace @adam/contracts",
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
+    "prestart": "npm run build --workspace @adam/contracts",
     "start": "tsx src/main.ts"
   },
   "dependencies": {

@@ -122,6 +122,21 @@ export interface RelayErrorEventPayload {
   promptId?: string;
 }
 
+export interface RelayEventPayloadMap {
+  message: RelayMessageEventPayload;
+  activity: RelayActivityEventPayload;
+  prompt_delivery: RelayPromptDeliveryPayload;
+  error: RelayErrorEventPayload;
+}
+
+/** A discriminated type/payload pair, kept together when constructing events. */
+export type RelayEventInput = {
+  [TType in RelayEventType]: {
+    type: TType;
+    payload: RelayEventPayloadMap[TType];
+  };
+}[RelayEventType];
+
 /**
  * A relay event: the shared event envelope plus the user it belongs to.
  *
@@ -130,13 +145,7 @@ export interface RelayErrorEventPayload {
  */
 export type RelayEvent = Omit<EventEnvelope, "type" | "payload"> & {
   userId: string;
-  type: RelayEventType;
-  payload:
-    | RelayMessageEventPayload
-    | RelayActivityEventPayload
-    | RelayPromptDeliveryPayload
-    | RelayErrorEventPayload;
-};
+} & RelayEventInput;
 
 export interface SessionHeartbeatInput {
   id: string;

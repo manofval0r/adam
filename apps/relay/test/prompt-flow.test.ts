@@ -103,8 +103,8 @@ describe("relay prompt flow", () => {
       expect(dequeue.statusCode).toBe(200);
       const dequeued = dequeue.json() as { prompts: Array<{ promptId: string; sessionId: string }> };
       expect(dequeued.prompts).toHaveLength(1);
-      expect(dequeued.prompts[0].promptId).toBe(submitted.promptId);
-      expect(dequeued.prompts[0].sessionId).toBe("session-a");
+      expect(dequeued.prompts[0]!.promptId).toBe(submitted.promptId);
+      expect(dequeued.prompts[0]!.sessionId).toBe("session-a");
 
       const adapterSent = await app.inject({
         method: "POST",
@@ -133,8 +133,9 @@ describe("relay prompt flow", () => {
       const promptListJson = promptList.json() as {
         prompts: Array<{ id: string; state: string }>;
       };
-      expect(promptListJson.prompts[0].id).toBe(submitted.promptId);
-      expect(promptListJson.prompts[0].state).toBe("acknowledged");
+      expect(promptListJson.prompts).toHaveLength(1);
+      expect(promptListJson.prompts[0]!.id).toBe(submitted.promptId);
+      expect(promptListJson.prompts[0]!.state).toBe("acknowledged");
 
       const events = await app.inject({
         method: "GET",
@@ -231,9 +232,10 @@ describe("relay prompt flow", () => {
       const promptsJson = prompts.json() as {
         prompts: Array<{ id: string; state: string; errorCode?: string }>;
       };
-      expect(promptsJson.prompts[0].id).toBe(promptId);
-      expect(promptsJson.prompts[0].state).toBe("failed");
-      expect(promptsJson.prompts[0].errorCode).toBe("codex_unavailable");
+      expect(promptsJson.prompts).toHaveLength(1);
+      expect(promptsJson.prompts[0]!.id).toBe(promptId);
+      expect(promptsJson.prompts[0]!.state).toBe("failed");
+      expect(promptsJson.prompts[0]!.errorCode).toBe("codex_unavailable");
     } finally {
       await app.close();
     }
