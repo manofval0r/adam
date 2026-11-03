@@ -21,6 +21,26 @@ This document records the Milestone 0 technical decisions for Adam's free/low-co
 | Artifact storage | Adam-hosted small artifacts first; S3-compatible/BYO later | Keep MVP storage limited and cheap. Heavy artifacts belong in premium or user-owned storage. |
 | GitHub integration | GitHub App | Cleaner long-term repo auth, PR metadata, CI status, and future runner/workspace integration. |
 | CI health checks | Dependency-free docs checks now; package tests later | Gives immediate quality gates without adding dependency cost or toolchain weight. |
+| Shared contracts | One `packages/contracts` package with Zod schemas | The daemon and relay currently hand-write parallel type definitions that can drift. One package removes the drift and is a prerequisite for the connector work. |
+| Relay state | Postgres on a managed free tier, never on the compute host | Free hosts get reclaimed. Keeping state out of the compute tier turns a lost host into a redeploy instead of a data loss. |
+| Primary database | Neon Free plan | Scales to zero and resumes automatically, has copy-on-write branching for migration testing, a 6-hour restore window, and needs no credit card. |
+| Database fallback | Aiven Free, then Supabase Free | Aiven states free forever with no card. Supabase is second because it pauses after 7 days needing a manual dashboard resume and has no backups on Free. |
+| Relay host | Oracle Always Free Ampere A1, treated as a swappable option | 2 OCPU and 12 GB is ample, but idle instances get reclaimed, capacity is often unavailable, the home region is immutable, and over-provisioning is deleted rather than billed. |
+| Host posture | Stateless relay plus a redeploy script | The host is assumed to disappear. Recovery must be one command against the same database. |
+| Artifact storage | Cloudflare R2 | 10 GB-month free with free internet egress, S3-compatible so the bucket can move without code changes. |
+| Notification email | Resend | Free forever plan, 3,000 emails per month and 100 per day, with a verified sending domain. |
+| Mobile push | Expo Push Notifications | No per-notification cost and no Apple membership fee at prototype scale. |
+| Queue library, if needed | Valkey rather than Redis 8 | Redis 8 is RSALv2, SSPLv1, or AGPLv3 tri-licensed. Valkey is BSD 3-Clause and a drop-in replacement. |
+| Connector model | One manifest shape mirroring the adapter contract | Adapters drive coding agents, connectors drive external services. Sharing the shape means one permission gate and one audit trail for both. |
+| Connector execution home | The relay executes connector calls | The phone must work while the computer is off, and these are cloud APIs rather than machine-local resources. |
+| Connector credentials | Held only by the relay, encrypted with envelope encryption | The agent never receives a provider token, so a prompt injection into the agent cannot exfiltrate a connection. |
+| Agent-facing connector transport | MCP over Streamable HTTP in stateless mode | Works with Codex CLI and Claude Code with no per-tool adapter, and stateless mode suits a horizontally scalable relay with no session affinity. |
+| Phone-facing connector transport | REST invoke endpoint on the existing auth | Reuses the pairing and device-token model that already works. |
+| Connector scope model | The grant is fixed at connection time and can only be narrowed | The agent may request only what the user already approved. The scope check is absolute and precedes the risk tier. |
+| Google connector scopes | Send first, read only on explicit decision | `gmail.send` is sensitive and needs verification. `gmail.readonly` is restricted and triggers a 6-week review plus an annual security assessment. |
+| Google OAuth publishing | Publish the client to In production from the outset | Testing mode issues refresh tokens that expire after 7 days. Personal-use apps need no verification beyond the warning screen. |
+| Connector failure behaviour | Fail closed on a dead grant | A revoked or expired connection blocks use and notifies the phone. The relay never retries a dead grant or serves stale data. |
+| Vendor MCP servers | Proxy to them rather than reimplementing | Google and Supabase publish official remote MCP servers. Proxying inherits their quota handling and error semantics, while Adam keeps the credential, the grant check, and the audit. |
 
 ## MVP architecture
 

@@ -5,10 +5,18 @@
   "type": "module",
   "main": "dist/main.js",
   "scripts": {
+    "prebuild": "npm run build --workspace @adam/contracts",
     "build": "tsc -p tsconfig.json",
+    "pretest": "npm run build --workspace @adam/contracts",
     "test": "vitest run",
+    "prehealth": "npm run build --workspace @adam/contracts",
     "health": "tsx src/main.ts health",
+    "prestart": "npm run build --workspace @adam/contracts",
     "start": "tsx src/main.ts start",
+    "prerelay:once": "npm run build --workspace @adam/contracts",
     "relay:once": "tsx src/main.ts relay-once"
+  },
+  "dependencies": {
+    "@adam/contracts": "*"
   }
 }

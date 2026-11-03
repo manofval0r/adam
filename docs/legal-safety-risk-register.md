@@ -15,7 +15,7 @@ This register identifies the major legal, product safety, privacy, and operation
 
 | Tier | Definition | Examples | MVP stance |
 | --- | --- | --- | --- |
-| Green | Official CLI/API/export, documented local format, open-source mechanism, or user-mediated import. | Codex CLI, Claude Code JSONL ingestion, GitHub APIs, GitHub Copilot chat export. | Allowed if permission model is respected. |
+| Green | Official CLI/API/export, documented local format, open-source mechanism, or user-mediated import. | Codex CLI, OpenCode, Claude Code JSONL ingestion, GitHub APIs, GitHub Copilot chat export. | Allowed if permission model is respected. |
 | Yellow | Undocumented local files or unstable local formats without service scraping or API bypass. | Antigravity local SQLite/protobuf if user-selected, Copilot local DB research. | Research only until legal/product review approves. |
 | Red | Reverse engineering, hidden service calls, scraping, bypassing APIs, automating prohibited activity, or uncontrolled mutation. | Cursor internals without permission, private service endpoints, terms-bypass automation. | Do not ship. |
 
@@ -88,6 +88,7 @@ Milestone 3 prompt forwarding must not be treated as a user-safe alpha release u
 | Integration | Status | User-facing label |
 | --- | --- | --- |
 | Codex CLI | MVP target | Supported alpha integration. |
+| OpenCode | MVP target, second adapter | Supported alpha integration. |
 | Claude Code JSONL | Post-MVP | Planned ingestion integration. |
 | GitHub Copilot export | Post-MVP | Planned import integration. |
 | Claude Cowork | Research | Research only. |
@@ -99,7 +100,7 @@ Milestone 3 prompt forwarding must not be treated as a user-safe alpha release u
 1. Is Adam's gateway/conduit positioning acceptable for relaying user prompts to locally authorized coding agents?
 2. What consent language is required before remote shell, file, repo, network, system, or cloud-runner access?
 3. What data retention and deletion controls are required for prompt text, event history, artifacts, and audit logs?
-4. Which integrations are safe under provider terms: Codex CLI, Claude Code JSONL, Copilot export, Antigravity local files, Cursor local files?
+4. Which integrations are safe under provider terms: Codex CLI, OpenCode, Claude Code JSONL, Copilot export, Antigravity local files, Cursor local files?
 5. What disclaimers are required for alpha users whose agents may modify code, run commands, or create pull requests?
 6. What security controls are required before Adam hosts cloud execution?
 7. What terms should govern user-owned storage and runner connectors?

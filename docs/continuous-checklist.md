@@ -10,7 +10,8 @@ This checklist is the live execution tracker for the project. Update it whenever
 | Current slice | Slice 4.1: Decision and permission event surfaces |
 | Primary platform | OpenAI Codex CLI |
 | Current risk focus | Keep approvals explicit and auditable before enabling higher-risk remote actions |
-| Next milestone | Milestone 5: Repository change visibility |
+| Next milestone | Milestone 5: Durable platform, once Milestone 4 completes |
+| Plan artifacts | `docs/superpowers/plans/` holds the task-by-task plans for Milestones 4, 5, 6, and 7 |
 
 ## Milestone 0: Foundation and planning
 
@@ -98,6 +99,19 @@ This checklist is the live execution tracker for the project. Update it whenever
 
 ## Milestone 4: Decision and permission gates
 
+Plan: `docs/superpowers/plans/2026-10-24-shared-contracts.md` (Tasks 1 and 2)
+
+### Slice 4.0: Shared contracts foundation
+
+The decision and permission events cannot be defined twice. The event envelope and the permission vocabulary are pulled forward from Milestone 5 because this milestone depends on them.
+
+- [ ] Add `packages/contracts` workspace package with Zod schemas.
+- [ ] Add event envelope schema with a closed event type union.
+- [ ] Add permission request and decision schemas.
+- [ ] Route daemon and relay event and permission types through the shared package.
+
+### Slice 4.1: Decision and permission event surfaces
+
 - [ ] Add `decision_request` event.
 - [ ] Add `permission_request` event.
 - [ ] Add mobile approval/rejection UI.
@@ -106,7 +120,106 @@ This checklist is the live execution tracker for the project. Update it whenever
 - [ ] Add push notification for blocked agent.
 - [ ] Prevent dangerous actions without explicit approval.
 
-## Milestone 5: Repository change visibility
+## Milestone 5: Durable platform
+
+Plan: `docs/superpowers/plans/2026-10-24-cloud-platform.md`
+
+### Slice 5.1: Durable relay state
+
+- [ ] Extract the `RelayStore` interface from the in-memory implementation.
+- [ ] Add Postgres pool with reconnect and a migration runner.
+- [ ] Add the core relational schema.
+- [ ] Implement the Postgres-backed store.
+- [ ] Enforce prompt idempotency and lease exclusivity in the database.
+- [ ] Order events by ingestion sequence rather than device clock.
+
+### Slice 5.2: Retention and storage
+
+- [ ] Add retention pruning for events, prompts, sessions, and audit rows.
+- [ ] Add free-tier headroom monitoring against the storage ceiling.
+- [ ] Add S3-compatible artifact storage with a local development fallback.
+- [ ] Confirm the daily notification cap cannot exhaust the monthly email quota.
+
+### Slice 5.3: Deployment
+
+- [ ] Build a reproducible relay container image.
+- [ ] Add deploy and redeploy scripts against the same database.
+- [ ] Terminate TLS on the relay host with automated certificate renewal.
+- [ ] Add a keepalive job that holds the host above the idle-reclamation threshold.
+- [ ] Add scheduled database backups to the artifact bucket with verification.
+- [ ] Add a restore path that restores into a branch before promoting.
+- [ ] Write the deployment runbook.
+
+## Milestone 6: Connector hub
+
+Plan: `docs/superpowers/plans/2026-10-24-shared-contracts.md` (Task 3) and `docs/superpowers/plans/2026-10-24-connector-hub.md`
+
+### Slice 6.0: Connector contracts
+
+- [ ] Add connector manifest, connection, and event schemas to the shared package.
+- [ ] Add the effective risk tier rule to the shared package.
+
+### Slice 6.1: Connector core
+
+- [ ] Add the encrypted credential vault with master key rotation.
+- [ ] Add the connector registry with manifest validation.
+- [ ] Add the encrypted connection store with lifecycle states.
+- [ ] Add the executor with scope check, permission gate, and audit.
+
+### Slice 6.2: Exposure surfaces
+
+- [ ] Add the phone and web REST surface for connect, invoke, and disconnect.
+- [ ] Add the MCP endpoint over Streamable HTTP in stateless mode.
+- [ ] Serve RFC 9728 protected resource metadata.
+- [ ] Register the relay as an MCP server with the local agent.
+- [ ] Move the client feed from polling to server-sent events.
+
+### Slice 6.3: First connectors
+
+- [ ] Add the Supabase connector over PostgREST.
+- [ ] Add the Gmail connector with a send-first scope strategy.
+- [ ] Publish the Google OAuth client to In production to avoid 7-day refresh tokens.
+- [ ] Add the connector connection and action events to the feed.
+- [ ] Add connector lifecycle notifications to the phone.
+
+## Milestone 7: Multi-agent adapters
+
+Plan: `docs/superpowers/plans/2026-10-24-agent-adapters.md`
+
+### Slice 7.1: Adapter abstraction
+
+- [ ] Extract the `AdamAdapter` interface and capability manifest from the Codex implementation.
+- [ ] Add the adapter registry with duplicate and unknown-adapter handling.
+- [ ] Move the prompt worker onto the registry with no behaviour change.
+
+### Slice 7.2: OpenCode adapter
+
+- [ ] Detect OpenCode availability and version.
+- [ ] Probe `opencode run --help` at runtime for the flags the installed build supports.
+- [ ] Start and stop `opencode serve`, and attach runs with `--attach`.
+- [ ] Execute prompts over `opencode run --format json` with the prompt on stdin.
+- [ ] Normalize the JSON event stream into shared events.
+- [ ] Classify tool failures as retryable or terminal.
+- [ ] Never pass the permission bypass flag, even when the build offers it.
+
+### Slice 7.3: Permissions and MCP injection
+
+- [ ] Convert OpenCode permission events into shared permission requests.
+- [ ] Emit the permission request and wait for the matching decision.
+- [ ] Inject the relay MCP endpoint through `OPENCODE_CONFIG_CONTENT`.
+- [ ] Confirm the user's `opencode.json` is never modified.
+
+### Slice 7.4: Claude Code and Copilot adapters
+
+- [ ] Add the Claude Code adapter driving `claude -p --output-format stream-json`.
+- [ ] Serve the phone's approval decision back to the agent through `--permission-prompt-tool`.
+- [ ] Confirm the adapter never uses the permission bypass mode.
+- [ ] Add the GitHub Copilot CLI adapter with `--connect` reconnection.
+- [ ] Detect and surface the case where Copilot skips MCP because no OAuth handler was present.
+- [ ] Add Claude Code JSONL ingestion and the Copilot export as fallbacks.
+- [ ] Confirm no adapter reads a private database format.
+
+## Milestone 8: Repository change visibility
 
 - [ ] Add changed-file summary.
 - [ ] Add git status sync.
@@ -116,7 +229,7 @@ This checklist is the live execution tracker for the project. Update it whenever
 - [ ] Add screenshot artifact support if needed.
 - [ ] Validate that mobile can explain current work state without opening the laptop.
 
-## Milestone 6: GitHub delivery visibility
+## Milestone 9: GitHub delivery visibility
 
 - [ ] Connect GitHub repo metadata.
 - [ ] Show current branch.
@@ -126,7 +239,7 @@ This checklist is the live execution tracker for the project. Update it whenever
 - [ ] Show merge readiness.
 - [ ] Support review comments or links.
 
-## Milestone 7: MVP hardening and alpha release
+## Milestone 10: MVP hardening and alpha release
 
 - [ ] Create setup/install path.
 - [ ] Add safe logging.
@@ -153,6 +266,8 @@ This checklist is the live execution tracker for the project. Update it whenever
 - [ ] Billing/usage model.
 - [ ] Bring-your-own storage connector proof of concept.
 - [ ] Bring-your-own runner/workspace proof of concept.
+- [ ] Google Workspace domain-wide delegation connector.
+- [ ] Google Calendar and Google Drive capability connectors.
 - [ ] GitHub Codespaces or Actions runner research spike.
 - [x] Integration surface research for Codex, Claude Code, Copilot, Antigravity, Cursor, and Cowork.
 

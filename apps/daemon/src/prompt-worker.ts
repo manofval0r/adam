@@ -2,6 +2,7 @@ import { executeCodexPrompt, type CodexPromptExecutionResult } from "./codex.js"
 import { gatherDaemonHealth } from "./health.js";
 import { dequeueRelayPrompts, postRelayHeartbeat, updateRelayPromptStatus, type RelayQueuedPrompt } from "./relay-client.js";
 import type { DaemonHeartbeatInput } from "./types.js";
+import { DAEMON_VERSION } from "./version.js";
 
 export interface RelayWorkerResult {
   status: "processed" | "no_prompts";
@@ -64,7 +65,7 @@ export async function runRelayWorkerOnce(
   }
 
   const heartbeatPayload: DaemonHeartbeatInput = {
-    daemonVersion: "0.2.0",
+    daemonVersion: DAEMON_VERSION,
     sessions: [sessionPayload]
   };
 

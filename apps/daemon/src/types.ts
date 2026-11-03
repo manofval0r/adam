@@ -1,26 +1,28 @@
-export type DaemonEventType = "session_started" | "activity";
+import type {
+  AdamEventType,
+  EventActor,
+  EventEnvelope,
+  EventRetention,
+  EventRetentionClass,
+  EventSource,
+  EventVisibility
+} from "@adam/contracts";
 
-export type EventVisibility = "user_visible" | "collapsed" | "audit_only" | "hidden";
+export type {
+  EventActor,
+  EventRetention,
+  EventRetentionClass,
+  EventSource,
+  EventVisibility
+};
 
-export type EventRetentionClass = "ephemeral" | "standard" | "audit" | "artifact_pointer";
-
-export interface EventRetention {
-  class: EventRetentionClass;
-  ttlDays?: number;
-}
-
-export interface EventSource {
-  kind: "desktop_daemon";
-  id: string;
-  name: string;
-  version: string;
-}
-
-export interface EventActor {
-  kind: "system";
-  id: string;
-  displayName: string;
-}
+/**
+ * Event types the daemon can emit.
+ *
+ * The vocabulary is owned by `@adam/contracts`; the daemon only narrows it
+ * when it pairs one event type with one daemon-local payload.
+ */
+export type DaemonEventType = AdamEventType;
 
 export interface SessionStartedPayload {
   tool: "codex_cli" | "unknown";
@@ -52,20 +54,22 @@ export interface DaemonHeartbeatInput {
   sessions: SessionHeartbeatInput[];
 }
 
-export interface DaemonEventEnvelope<TPayload> {
-  id: string;
-  schemaVersion: "2026-07-26";
-  type: DaemonEventType;
-  sessionId: string;
-  sequence: number;
-  createdAt: string;
-  source: EventSource;
-  actor: EventActor;
+/**
+ * The shared event envelope, narrowed to one event type.
+ *
+ * The envelope fields are derived from the shared `EventEnvelope`, so a field
+ * added to the shared contract cannot be missing here. The event type is a type
+ * parameter so that widening `DaemonEventType` to the shared union cannot pair
+ * an arbitrary payload with an arbitrary type.
+ */
+export type DaemonEventEnvelope<TType extends DaemonEventType, TPayload> = Omit<
+  EventEnvelope,
+  "type" | "payload"
+> & {
+  type: TType;
   payload: TPayload;
-  visibility: EventVisibility;
-  retention: EventRetention;
-}
+};
 
 export type DaemonEvent =
-  | DaemonEventEnvelope<SessionStartedPayload>
-  | DaemonEventEnvelope<ActivityPayload>;
+  | DaemonEventEnvelope<"session_started", SessionStartedPayload>
+  | DaemonEventEnvelope<"activity", ActivityPayload>;

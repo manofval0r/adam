@@ -29,7 +29,7 @@ type AdamAdapter = {
 
 ```ts
 type AdapterManifest = {
-  id: "codex_cli" | "claude_code" | "github_copilot_export" | string;
+  id: "codex_cli" | "opencode" | "claude_code" | "github_copilot_cli" | "github_copilot_export" | string;
   displayName: string;
   version: string;
   riskTier: "green" | "yellow" | "red";
@@ -64,6 +64,36 @@ type AdapterCapabilities = {
 | Write files directly from Adam | No; Codex/tool owns edits |
 | Run arbitrary shell from mobile | No direct mobile shell in MVP; require explicit permission events later |
 | Cloud runner support | Later |
+
+## OpenCode adapter capability target
+
+OpenCode is the second full adapter and the first that is driven as a long-lived client rather than spawned per prompt. It is MIT licensed and exposes a documented JSON event stream, so it is green tier.
+
+| Capability | Target |
+| --- | --- |
+| Detect OpenCode availability | Yes |
+| Detect local sessions | Yes, through `opencode session list --format json` |
+| Resume one session | Yes, through `--session <id>` |
+| Send prompt | Yes, through `opencode run --format json` with the prompt on stdin |
+| Stream normalized activity | Yes, from the raw JSON event stream |
+| Read git status | Yes, through daemon git integration |
+| Read history | Yes, through `opencode export <id>` rather than reading the session database |
+| Run a long-lived tool server | Yes, through `opencode serve` plus `--attach` |
+| Request permissions | Yes, by forwarding OpenCode's own approval flow to the phone |
+| Write files directly from Adam | No; the agent owns edits |
+| Run arbitrary shell from mobile | No; shell runs inside the agent under its own approval flow |
+
+### Server-backed adapters
+
+Some tools separate the agent engine from its clients. OpenCode runs a headless HTTP server that the terminal UI, desktop app, and editor extensions all connect to, and a run can attach to an already-running server.
+
+An adapter for such a tool keeps one server process alive on the user's machine and drives it over its local interface. This has two concrete benefits for Adam. The MCP connection from the tool to Adam's connector hub stays open, so the connector's OAuth handshake is not repeated on every prompt. And the tool's session state persists in the server, so resuming a session does not require reconstructing it from exported history.
+
+The adapter must still handle the case where the server is not running, by starting one and attaching to it.
+
+### Flag detection
+
+Tool CLIs add flags between releases. `opencode run --dangerously-skip-permissions` exists in newer builds and not in older ones. An adapter probes `opencode run --help` at detection time and records the available flags, rather than assuming a fixed set. Adam never passes a flag that suppresses the tool's own permission flow, because forwarding that approval to the phone is the product.
 
 ## Lifecycle
 
@@ -187,7 +217,17 @@ type AdapterError = {
 ## First adapter implementation order
 
 1. Codex CLI local adapter.
-2. Claude Code JSONL ingestion adapter.
-3. GitHub Copilot export importer.
-4. Copy-paste fallback importer.
-5. Cloud-runner adapter once hosted or user-owned runner architecture is ready.
+2. OpenCode local adapter, in server-backed mode.
+3. Claude Code local adapter, using an MCP tool as the permission host.
+4. GitHub Copilot CLI local adapter, reconnecting with `--connect`.
+5. Copy-paste fallback importer.
+6. Cloud-runner adapter once hosted or user-owned runner architecture is ready.
+
+## Permission host adapters
+
+Claude Code can be given an MCP tool as the host that answers permission requests, through its `--permission-prompt-tool` flag. An Agent SDK application can do the same through a `canUseTool` callback.
+
+This is the mechanism Adam should use rather than a bespoke one. The relay already exposes an MCP server, so the permission tool is another tool on that server: it converts the tool's permission request into a shared `permission_request` event, waits for the matching `permission_decision` from the phone, and returns the answer to the agent.
+
+The consequence is that the phone-facing approval flow is written once. An agent that supports an MCP permission host needs no adapter-specific approval code, only a manifest entry naming the tool. Adapters that cannot offer a host, such as a pure ingestion adapter, must still declare `requestPermissions` as false rather than pretending to support it.
+

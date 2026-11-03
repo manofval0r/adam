@@ -1,6 +1,9 @@
 import { randomBytes, randomUUID } from "node:crypto";
+import { SCHEMA_VERSION } from "@adam/contracts";
+import type { EventActor, EventSource } from "@adam/contracts";
 import { hashToken } from "./auth.js";
 import { RelayStoreError } from "./errors.js";
+import { RELAY_VERSION } from "./version.js";
 import type {
   DaemonHeartbeatInput,
   PairingCodeRecord,
@@ -11,6 +14,7 @@ import type {
   RelayDevice,
   RelayErrorEventPayload,
   RelayEvent,
+  RelayEventInput,
   RelayMessageEventPayload,
   RelayPrompt,
   RelayPromptDeliveryPayload,
@@ -39,6 +43,25 @@ function plusSeconds(date: Date, seconds: number): Date {
 function plusDays(date: Date, days: number): Date {
   return new Date(date.getTime() + days * 24 * 60 * 60 * 1_000);
 }
+
+/**
+ * The relay's own identity in the shared event envelope.
+ *
+ * The relay is one deployment-level actor, so every event it emits carries
+ * this same source and actor instead of a freshly minted identity per event.
+ */
+const RELAY_EVENT_SOURCE: EventSource = {
+  kind: "cloud_relay",
+  id: "adam-relay",
+  name: "Adam Relay",
+  version: RELAY_VERSION
+};
+
+const RELAY_EVENT_ACTOR: EventActor = {
+  kind: "system",
+  id: "adam-relay",
+  displayName: "Adam Relay"
+};
 
 export class RelayStore {
   private readonly users = new Map<string, RelayUser>();
@@ -583,7 +606,7 @@ export class RelayStore {
     payload: RelayMessageEventPayload,
     correlationId?: string
   ): void {
-    this.appendEvent(userId, sessionId, "message", payload, correlationId);
+    this.appendEvent(userId, sessionId, { type: "message", payload }, correlationId);
   }
 
   private appendActivityEvent(
@@ -592,7 +615,7 @@ export class RelayStore {
     sessionId: string = "relay",
     correlationId?: string
   ): void {
-    this.appendEvent(userId, sessionId, "activity", payload, correlationId);
+    this.appendEvent(userId, sessionId, { type: "activity", payload }, correlationId);
   }
 
   private appendPromptDeliveryEvent(
@@ -601,7 +624,7 @@ export class RelayStore {
     payload: RelayPromptDeliveryPayload,
     correlationId?: string
   ): void {
-    this.appendEvent(userId, sessionId, "prompt_delivery", payload, correlationId);
+    this.appendEvent(userId, sessionId, { type: "prompt_delivery", payload }, correlationId);
   }
 
   private appendErrorEvent(
@@ -610,26 +633,31 @@ export class RelayStore {
     payload: RelayErrorEventPayload,
     correlationId?: string
   ): void {
-    this.appendEvent(userId, sessionId, "error", payload, correlationId);
+    this.appendEvent(userId, sessionId, { type: "error", payload }, correlationId);
   }
 
   private appendEvent(
     userId: string,
     sessionId: string,
-    type: RelayEvent["type"],
-    payload: RelayEvent["payload"],
+    input: RelayEventInput,
     correlationId?: string
   ): void {
     const sequence = (this.eventSequenceByUser.get(userId) ?? 0) + 1;
     this.eventSequenceByUser.set(userId, sequence);
     const event: RelayEvent = {
+      ...input,
       id: randomUUID(),
       userId,
       sessionId,
-      type,
       sequence,
       createdAt: toIso(this.now()),
-      payload
+      schemaVersion: SCHEMA_VERSION,
+      source: RELAY_EVENT_SOURCE,
+      actor: RELAY_EVENT_ACTOR,
+      visibility: "user_visible",
+      retention: {
+        class: "standard"
+      }
     };
     if (correlationId) {
       event.correlationId = correlationId;

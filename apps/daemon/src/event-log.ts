@@ -1,6 +1,7 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { SCHEMA_VERSION } from "@adam/contracts";
 import type {
   ActivityPayload,
   DaemonEvent,
@@ -33,9 +34,9 @@ export class EventLogWriter {
   }
 
   emitSessionStartedEvent(sessionId: string, payload: SessionStartedPayload): DaemonEvent {
-    const event: DaemonEventEnvelope<SessionStartedPayload> = {
+    const event: DaemonEventEnvelope<"session_started", SessionStartedPayload> = {
       id: randomUUID(),
-      schemaVersion: "2026-07-26",
+      schemaVersion: SCHEMA_VERSION,
       type: "session_started",
       sessionId,
       sequence: this.sequence++,
@@ -54,9 +55,9 @@ export class EventLogWriter {
   }
 
   emitActivityEvent(sessionId: string, payload: ActivityPayload): DaemonEvent {
-    const event: DaemonEventEnvelope<ActivityPayload> = {
+    const event: DaemonEventEnvelope<"activity", ActivityPayload> = {
       id: randomUUID(),
-      schemaVersion: "2026-07-26",
+      schemaVersion: SCHEMA_VERSION,
       type: "activity",
       sessionId,
       sequence: this.sequence++,

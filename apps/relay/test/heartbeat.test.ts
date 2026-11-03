@@ -108,7 +108,7 @@ describe("relay heartbeat and reconnect behavior", () => {
       });
       const sessionsOnlineJson = sessionsOnline.json() as { sessions: Array<{ status: string }> };
       expect(sessionsOnlineJson.sessions).toHaveLength(1);
-      expect(sessionsOnlineJson.sessions[0].status).toBe("active");
+      expect(sessionsOnlineJson.sessions[0]!.status).toBe("active");
 
       now = new Date(now.getTime() + 31_000);
       const devicesDisconnected = await app.inject({
@@ -121,8 +121,9 @@ describe("relay heartbeat and reconnect behavior", () => {
       const devicesDisconnectedJson = devicesDisconnected.json() as {
         devices: Array<{ status: string; reconnectCount: number; tokenHash?: string }>;
       };
-      expect(devicesDisconnectedJson.devices[0].status).toBe("disconnected");
-      expect(devicesDisconnectedJson.devices[0].tokenHash).toBeUndefined();
+      expect(devicesDisconnectedJson.devices).toHaveLength(1);
+      expect(devicesDisconnectedJson.devices[0]!.status).toBe("disconnected");
+      expect(devicesDisconnectedJson.devices[0]!.tokenHash).toBeUndefined();
 
       const heartbeatReconnect = await app.inject({
         method: "POST",
@@ -239,7 +240,7 @@ describe("relay heartbeat and reconnect behavior", () => {
       const devicesAJson = devicesA.json() as { userId: string; devices: Array<{ name: string }> };
       expect(devicesAJson.userId).toBe("user-a");
       expect(devicesAJson.devices).toHaveLength(1);
-      expect(devicesAJson.devices[0].name).toBe("A-device");
+      expect(devicesAJson.devices[0]!.name).toBe("A-device");
     } finally {
       await app.close();
     }

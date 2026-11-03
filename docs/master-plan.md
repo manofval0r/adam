@@ -164,11 +164,43 @@ See [Normalized Event Schema](event-schema.md) for implementation-ready envelope
 | Platform | Priority | Strategy | Risk |
 | --- | ---: | --- | --- |
 | OpenAI Codex CLI | 1 | First integration. Use official resume/session behavior and CLI wrapping where appropriate. | Low |
-| Claude Code | 2 | Strong ingestion via JSONL transcripts at `~/.claude/projects/<project>/<session-id>.jsonl`; control only through safe/official mechanisms. | Low to medium |
-| GitHub Copilot | 3 | Prefer official `Chat: Export Session`; avoid raw `state.vscdb` parsing in the MVP. | Medium |
-| Claude Cowork | 4 | Research ingestion/control surfaces before committing to support. | Unknown |
-| Google Antigravity | 5 | Experimental ingestion only until format stability and legal posture are clear. | Medium to high |
-| Cursor | 6 | Opt-in/unofficial only until Cursor grants permission or clarifies acceptable local history access. | High |
+| OpenCode | 2 | Second full adapter. MIT licensed with a documented JSON event stream, MCP with OAuth, and a server-backed mode that keeps the connector connection alive between prompts. | Low |
+| Claude Code | 3 | Full adapter. `--permission-prompt-tool` accepts an MCP tool as the permission host, which is how a phone approval reaches the agent. JSONL transcripts remain the ingestion fallback. | Low |
+| GitHub Copilot | 4 | Full adapter. `--connect` exists for reconnecting to a running session, and `--output-format json` gives structured JSONL. Never read the local session store. | Low to medium |
+| Claude Cowork | 5 | Research ingestion/control surfaces before committing to support. | Unknown |
+| Google Antigravity | 6 | Experimental ingestion only until format stability and legal posture are clear. | Medium to high |
+| Cursor | 7 | Opt-in/unofficial only until Cursor grants permission or clarifies acceptable local history access. | High |
+
+OpenCode earns its second position for three reasons that reinforce each other. It is MIT licensed and provider-agnostic, so it runs against a local model and matches the project's open-source posture. It publishes a raw JSON event stream rather than requiring reverse engineering, which puts it in the green tier on the same grounds as Codex. And because its agent engine is a separate server that clients attach to, the adapter can keep one MCP connection to Adam's connector hub open across prompts instead of re-running an OAuth handshake on every turn.
+
+## Connector and plugin platform
+
+Adapters reach a coding agent. Connectors reach the services a user already owns. Both are the same kind of pluggable extension, so Adam treats them with one manifest shape, one permission gate, and one audit trail.
+
+A user connects an external account once, from a browser, and that connection becomes available from two places: the agent running on their computer, and the phone in their hand. The relay holds the credential and executes the provider call, so the agent never receives a provider token and the phone still works when the laptop is asleep.
+
+| Connector class | Examples | What it gives the user |
+| --- | --- | --- |
+| Capability | Supabase, Gmail, Google Workspace, GitHub | The agent and the phone can reach a service neither could touch alone. |
+| Storage | Neon Postgres, Cloudflare R2 | Where Adam keeps its own state, including the user's own bucket if they want one. |
+| Notification | Resend email, Expo push | How the relay reaches the user when the agent is blocked and waiting. |
+
+This is what makes the product genuinely mobile rather than a web page that fits on a phone. The user can ask from a train whether a deploy notification was sent, because the credential is in the relay rather than on the laptop.
+
+The full design, including the credential vault, the scope model, and the provider-specific constraints, is in [Connector architecture](connector-architecture.md).
+
+### Hosting posture
+
+Adam runs on free-tier infrastructure, which means every component has to assume it can disappear. The posture is a stateless relay in front of a managed database, with the compute host treated as disposable.
+
+| Component | Choice | Why it survives contact with reality |
+| --- | --- | --- |
+| Relay application | Oracle Always Free Ampere A1, or an equivalent free container host | The host is disposable, so it can be replaced by any other provider without code changes. |
+| Database | Neon Free plan | Auto-resumes, has copy-on-write branching for migration testing, and has a 6-hour restore window. |
+| Artifacts and backups | Cloudflare R2 | Free egress and an S3-compatible API, so the bucket is portable. |
+| Notifications | Resend and Expo Push | Both free at product volume; the daily email cap is the real ceiling. |
+
+Oracle Always Free is deliberately not the system of record. The Ampere A1 entitlement was cut to 2 OCPU and 12 GB in August 2026, idle instances are reclaimed after seven days below a 20% utilisation threshold, the home region is immutable, and there is no free managed Postgres on Oracle at all. The detailed reasoning, the cost model, and the operational runbook are in [Cloud platform](cloud-platform.md).
 
 ## Legal and safety model
 
@@ -209,6 +241,7 @@ See [Normalized Event Schema](event-schema.md) for implementation-ready envelope
 - GitHub workflow status.
 - Branch and commit tracking.
 - Copy-paste fallback import for unsupported tools.
+- Shared connector connections usable from both the phone and the agent.
 
 ### Layer 3: Power-user and team controls
 
@@ -222,6 +255,7 @@ See [Normalized Event Schema](event-schema.md) for implementation-ready envelope
 - Cloud-hosted execution.
 - Bring-your-own storage connectors.
 - Bring-your-own runner/workspace connectors.
+- Organization-scoped connections using domain-wide delegation.
 - Billing and usage limits.
 
 ## Long-term milestones
@@ -232,11 +266,13 @@ See [Normalized Event Schema](event-schema.md) for implementation-ready envelope
 | 1. Codex Remote Control Alpha | Prove phone-to-local-agent loop. | Phone can view and prompt one Codex session through daemon and relay. |
 | 2. Ingestion SDK | Normalize histories and tool activity. | Adapter contract supports Codex and Claude Code ingestion. |
 | 3. Agent control loop | Make remote supervision useful. | Prompt/resume, decision requests, permission gates, notifications. |
-| 4. Code review layer | Review work from phone. | Diffs, changed files, approval/rejection, summaries. |
-| 5. GitHub delivery integration | Connect work to PRs and CI. | PR status, Actions status, review comments, merge readiness. |
-| 6. Safe multi-tool expansion | Add supported platforms in risk order. | Copilot export, Claude Cowork research, experimental Antigravity/Cursor if cleared. |
-| 7. Cloud execution | Remove laptop dependency. | Hosted or user-owned runners/workspaces with secure secrets, repo access, and clear storage limits. |
-| 8. Command center | Support power users and teams. | Multi-agent dashboard, org policy, audit, billing, contribution graph. |
+| 4. Durable platform | Make the relay runnable unattended. | Postgres-backed state, artifact storage, retention enforcement, and reproducible deployment onto disposable hosts. |
+| 5. Connector hub | Let the user connect their own services. | One connection works from both the phone and the agent, with scoped grants, permission gates, and a full audit trail. |
+| 6. Code review layer | Review work from phone. | Diffs, changed files, approval/rejection, summaries. |
+| 7. GitHub delivery integration | Connect work to PRs and CI. | PR status, Actions status, review comments, merge readiness. |
+| 8. Safe multi-tool expansion | Add supported platforms in risk order. | Copilot export, Claude Cowork research, experimental Antigravity/Cursor if cleared. |
+| 9. Cloud execution | Remove laptop dependency. | Hosted or user-owned runners/workspaces with secure secrets, repo access, and clear storage limits. |
+| 10. Command center | Support power users and teams. | Multi-agent dashboard, org policy, audit, billing, contribution graph. |
 
 ## Open questions
 

@@ -3,7 +3,13 @@ import { loadRelayConfig } from "./config.js";
 import { RelayStoreError } from "./errors.js";
 import { parseBearerToken } from "./auth.js";
 import { RelayStore } from "./store.js";
-import type { DaemonHeartbeatInput, PromptStatusUpdateInput, RelayConfig, SessionHeartbeatInput } from "./types.js";
+import type {
+  DaemonHeartbeatInput,
+  PromptStatusUpdateInput,
+  RelayConfig,
+  RelayEvent,
+  SessionHeartbeatInput
+} from "./types.js";
 
 export interface RelayServerOptions {
   config?: RelayConfig;
@@ -261,6 +267,18 @@ function isTrustedProxySource(request: FastifyRequest, trustedProxyIps: string[]
   return remoteAddress !== null && trustedProxyIps.includes(remoteAddress);
 }
 
+/**
+ * Shapes a stored relay event for the wire.
+ *
+ * The shared event envelope has no `userId` field, and every event in a
+ * response belongs to the user already named at the top level of that
+ * response, so the relay-local `userId` is dropped here.
+ */
+function toEnvelopeEvent(event: RelayEvent): Omit<RelayEvent, "userId"> {
+  const { userId: _eventUserId, ...envelope } = event;
+  return envelope;
+}
+
 export function createRelayServer(options?: RelayServerOptions): FastifyInstance {
   const config = options?.config ?? loadRelayConfig();
   if (
@@ -478,7 +496,7 @@ export function createRelayServer(options?: RelayServerOptions): FastifyInstance
       const query = isRecord(request.query) ? request.query : {};
       const sinceSequence = parseOptionalSinceSequence(query.sinceSequence);
       const limit = parseOptionalLimit(query.limit, 50, 200);
-      const events = store.listEventsForUser(principal.userId, sinceSequence, limit);
+      const events = store.listEventsForUser(principal.userId, sinceSequence, limit).map(toEnvelopeEvent);
       const lastEvent = events.length > 0 ? events[events.length - 1] : null;
       const lastSequence = lastEvent ? lastEvent.sequence : sinceSequence;
       reply.send({

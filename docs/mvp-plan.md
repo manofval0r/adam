@@ -147,6 +147,7 @@ Goal: Make remote control safe enough for real work.
 
 Deliverables:
 
+- A shared `packages/contracts` package owning the event envelope and the permission vocabulary, pulled forward from the platform milestone because this milestone depends on it.
 - Permission request event type.
 - Decision request event type.
 - Mobile approval/rejection UI.
@@ -161,8 +162,70 @@ Definition of done:
 - User can approve/reject from phone.
 - Permission decisions are recorded.
 - Dangerous actions are not silently allowed.
+- The event and permission types are defined once, in the shared package, and both apps consume them.
 
-### Milestone 5: Repository change visibility
+### Milestone 5: Durable platform
+
+Goal: Make the relay runnable unattended on infrastructure that can disappear at any moment.
+
+Deliverables:
+
+- Postgres-backed relay state with migrations, prompt idempotency, and lease exclusivity enforced in the database.
+- Retention pruning and free-tier headroom monitoring.
+- S3-compatible artifact storage with a local development fallback.
+- A reproducible container build, deploy and redeploy scripts, TLS termination, and a keepalive job.
+- Scheduled backups with a restore path that restores into a branch before promoting.
+
+Definition of done:
+
+- The relay survives losing its host with no data loss.
+- Two relay instances can run at once without double-delivering a prompt.
+- A bad migration can be rolled back from the branch history.
+- A daily job reports how close the free-tier ceilings are.
+
+### Milestone 6: Connector hub
+
+Goal: Let the user connect an external account once and use it from both the phone and the agent.
+
+Deliverables:
+
+- Connector manifest, connection, and event schemas added to the shared contracts package.
+- An encrypted credential vault with envelope encryption and master key rotation.
+- A connector registry, connection store with lifecycle states, and an executor that applies the scope check, permission gate, and audit.
+- A REST surface for the phone and web client, and an MCP endpoint over Streamable HTTP for the agent.
+- The first connectors: Supabase over PostgREST, and Gmail with a send-first scope strategy.
+- Connector connection and action events in the feed, with lifecycle notifications to the phone.
+
+Definition of done:
+
+- A user can connect one account and use it from the phone and from the agent.
+- The agent never holds a provider credential.
+- An action outside the granted scope is refused, audited, and never reaches the provider.
+- A revoked grant blocks further use instead of retrying silently.
+
+### Milestone 7: Multi-agent adapters
+
+Goal: Support more than one coding agent without duplicating the daemon, and let the connector hub reach the agent.
+
+Deliverables:
+
+- A shared adapter interface and capability manifest, extracted from the existing Codex implementation.
+- An OpenCode adapter in server-backed mode, using `opencode serve` with `--attach` so the MCP connection to the connector hub stays open between prompts.
+- OpenCode capability detection, runtime flag probing, prompt execution over `opencode run --format json`, and event normalization.
+- A Claude Code adapter that uses `--permission-prompt-tool` to serve the phone's approval decision back to the agent.
+- A GitHub Copilot CLI adapter that reconnects to a running session with `--connect` and streams structured JSONL.
+- Permission forwarding that surfaces the tool's own approval request on the phone rather than bypassing it.
+- MCP injection through `OPENCODE_CONFIG_CONTENT`, so the user's own config is never modified.
+- Claude Code JSONL transcript ingestion and the Copilot session export as fallbacks for sessions Adam did not drive.
+
+Definition of done:
+
+- A user with OpenCode installed can drive it from the phone.
+- The connector hub's tools are reachable from the OpenCode agent.
+- An approval request raised by OpenCode appears on the phone and the agent waits.
+- Adding a further agent requires a new adapter, not changes to the daemon core.
+
+### Milestone 8: Repository change visibility
 
 Goal: Let the user understand what the agent changed without opening the laptop.
 
@@ -180,7 +243,7 @@ Definition of done:
 - User can inspect a readable diff.
 - User can understand the current state of the work from the feed plus summary.
 
-### Milestone 6: GitHub delivery visibility
+### Milestone 9: GitHub delivery visibility
 
 Goal: Connect local agent work to pull requests and CI.
 
@@ -199,7 +262,7 @@ Definition of done:
 - User can see CI status from mobile.
 - User can tell whether the work is likely safe to review or merge.
 
-### Milestone 7: MVP hardening and alpha release
+### Milestone 10: MVP hardening and alpha release
 
 Goal: Make the Codex alpha reliable enough for private testing.
 
@@ -226,7 +289,7 @@ Definition of done:
 4. Antigravity experimental local ingestion if cleared.
 5. Cursor experimental adapter only after permission/legal clarity.
 6. Cloud-hosted execution proof of concept.
-7. Bring-your-own storage and runner connectors.
+7. Bring-your-own runner and workspace connectors.
 8. Multi-agent command center.
 
 ## MVP feature backlog
@@ -239,19 +302,20 @@ Definition of done:
 | Desktop daemon | Yes | Required for local sync/control. |
 | Cloud relay | Yes | Required for mobile access. |
 | Codex session resume | Yes | First adapter target. |
+| OpenCode session resume | Yes | Second adapter target, server-backed mode. |
 | Push notifications | Yes | Needed for decision points. |
 | Permission gates | Yes | Safety-critical. |
 | Changed-file summary | Yes | Minimum repository visibility. |
-| Diff viewer | Yes | Target Milestone 5. |
-| PR status | Soon | Milestone 6. |
-| CI status | Soon | Milestone 6. |
+| Diff viewer | Yes | Target Milestone 8. |
+| PR status | Soon | Milestone 9. |
+| CI status | Soon | Milestone 9. |
 | Artifact cards | Soon | Start with summaries/logs. |
 | Copy-paste fallback | Soon | Useful for unsupported tools. |
 | Multi-agent dashboard | Later | Post-MVP. |
 | Repo switcher | Later | Post-MVP unless required by testers. |
 | Contribution graph | Later | Power-user feature. |
 | Cloud execution | Later | Hardest/riskier milestone. |
-| Bring-your-own storage | Later | Useful for heavy artifacts and data ownership, but not needed for MVP. |
+| Bring-your-own storage | Later | Capability and storage connectors land in Milestone 6. A user-owned bucket as the storage target remains later. |
 | Bring-your-own runner | Later | Better fit for laptop-off coding than database-only storage. |
 | Team/org policy controls | Later | Requires stable core first. |
 
